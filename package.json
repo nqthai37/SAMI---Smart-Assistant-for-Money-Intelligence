@@ -1,0 +1,21 @@
+{
+  "name": "sami-smart-assistant",
+  "version": "1.0.0",
+  "description": "Smart Assistant for Money Intelligence",
+  "main": "src/server.js",
+  "scripts": {
+    "start": "node src/server.js",
+    "dev": "node src/server.js"
+  },
+  "dependencies": {
+    "@prisma/client": "^6.13.0",
+    "@supabase/supabase-js": "^2.53.0",
+    "better-sqlite3": "^12.2.0",
+    "body-parser": "^2.2.0",
+    "cors": "^2.8.5",
+    "dotenv": "^17.2.1",
+    "express": "^5.1.0",
+    "pg": "^8.16.3",
+    "prisma": "^6.13.0"
+  }
+}
