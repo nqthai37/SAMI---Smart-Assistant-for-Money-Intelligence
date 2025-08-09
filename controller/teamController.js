@@ -1,5 +1,5 @@
-
-const teamService = require('../services/teamService');
+import { Request, Response } from 'express';
+import * as teamService from '../services/teamService';
 
 /**
  * @desc    Rename a workspace (team)
@@ -7,11 +7,11 @@ const teamService = require('../services/teamService');
  * @access  Private (must have permission)
  * Body: { name: string }
  */
-exports.renameWorkspace = async (req, res) => {
+export const renameWorkspace = async (req: Request, res: Response): Promise<Response> => {
   try {
-    const userId = req.user && req.user.userId;
-    const workspaceId = parseInt(req.params.workspaceId, 10);
-    const { name } = req.body;
+    const userId: number | undefined = req.user?.userId;
+    const workspaceId: number = parseInt(req.params.workspaceId, 10);
+    const { name }: { name?: string } = req.body;
 
     if (!name || typeof name !== 'string' || !name.trim()) {
       return res.status(400).json({ message: 'Invalid workspace name' });
@@ -20,7 +20,7 @@ exports.renameWorkspace = async (req, res) => {
     const updated = await teamService.renameWorkspace(userId, workspaceId, name.trim());
 
     return res.json({ message: 'Workspace renamed', data: updated });
-  } catch (error) {
+  } catch (error: any) {
     console.error('renameWorkspace error', error);
     return res.status(error.status || 500).json({ message: error.message || 'Server error' });
   }
@@ -30,14 +30,14 @@ exports.renameWorkspace = async (req, res) => {
  * @desc    Permit a member to view reports (grant or revoke)
  * @route   POST /api/teams/:workspaceId/members/:memberId/permission/report
  * @access  Private (must be admin/owner)
- * Body: { permit: boolean }  // true = grant, false = revoke
+ * Body: { permit: boolean }
  */
-exports.permitMemberViewReport = async (req, res) => {
+export const permitMemberViewReport = async (req: Request, res: Response): Promise<Response> => {
   try {
-    const actorId = req.user && req.user.userId;
-    const workspaceId = parseInt(req.params.workspaceId, 10);
-    const memberId = parseInt(req.params.memberId, 10);
-    const { permit } = req.body;
+    const actorId: number | undefined = req.user?.userId;
+    const workspaceId: number = parseInt(req.params.workspaceId, 10);
+    const memberId: number = parseInt(req.params.memberId, 10);
+    const { permit }: { permit?: boolean } = req.body;
 
     if (typeof permit !== 'boolean') {
       return res.status(400).json({ message: 'permit must be boolean' });
@@ -49,7 +49,7 @@ exports.permitMemberViewReport = async (req, res) => {
       message: permit ? 'Permission granted' : 'Permission revoked',
       data: result
     });
-  } catch (error) {
+  } catch (error: any) {
     console.error('permitMemberViewReport error', error);
     return res.status(error.status || 500).json({ message: error.message || 'Server error' });
   }
@@ -60,37 +60,37 @@ exports.permitMemberViewReport = async (req, res) => {
  * @route   GET /api/teams/:workspaceId/transactions
  * @access  Private (member of workspace)
  */
-exports.getTransactions = async (req, res) => {
+export const getTransactions = async (req: Request, res: Response): Promise<Response> => {
   try {
-    const userId = req.user && req.user.userId;
-    const workspaceId = parseInt(req.params.workspaceId, 10);
-    const { page = 1, limit = 20, sort } = req.query;
+    const userId: number | undefined = req.user?.userId;
+    const workspaceId: number = parseInt(req.params.workspaceId, 10);
+    const { page = '1', limit = '20', sort } = req.query;
 
     const result = await teamService.getTransactions(userId, workspaceId, {
-      page: parseInt(page, 10),
-      limit: parseInt(limit, 10),
-      sort
+      page: parseInt(page as string, 10),
+      limit: parseInt(limit as string, 10),
+      sort: sort as string | undefined
     });
 
     return res.json(result);
-  } catch (error) {
+  } catch (error: any) {
     console.error('getTransactions error', error);
     return res.status(error.status || 500).json({ message: error.message || 'Server error' });
   }
 };
 
 /**
- * @desc    Search transactions in a workspace (text search on note, title, tags, etc.)
+ * @desc    Search transactions in a workspace
  * @route   GET /api/teams/:workspaceId/transactions/search
  * @access  Private
  */
-exports.searchTransaction = async (req, res) => {
+export const searchTransaction = async (req: Request, res: Response): Promise<Response> => {
   try {
-    const userId = req.user && req.user.userId;
-    const workspaceId = parseInt(req.params.workspaceId, 10);
-    const q = (req.query.q || '').trim();
-    const page = parseInt(req.query.page || '1', 10);
-    const limit = parseInt(req.query.limit || '25', 10);
+    const userId: number | undefined = req.user?.userId;
+    const workspaceId: number = parseInt(req.params.workspaceId, 10);
+    const q: string = (req.query.q as string || '').trim();
+    const page: number = parseInt(req.query.page as string || '1', 10);
+    const limit: number = parseInt(req.query.limit as string || '25', 10);
 
     if (!q) {
       return res.status(400).json({ message: 'Query param q is required' });
@@ -99,44 +99,30 @@ exports.searchTransaction = async (req, res) => {
     const result = await teamService.searchTransaction(userId, workspaceId, { q, page, limit });
 
     return res.json(result);
-  } catch (error) {
+  } catch (error: any) {
     console.error('searchTransaction error', error);
     return res.status(error.status || 500).json({ message: error.message || 'Server error' });
   }
 };
 
 /**
- * @desc    Filter transactions by criteria: date range, amount range, category, member, type, tag...
+ * @desc    Filter transactions by criteria
  * @route   POST /api/teams/:workspaceId/transactions/filter
  * @access  Private
- * Body: {
- *   fromDate?: '2025-01-01',
- *   toDate?: '2025-01-31',
- *   minAmount?: number,
- *   maxAmount?: number,
- *   categoryIds?: [1,2],
- *   memberIds?: [3,4],
- *   type?: 'income'|'expense',
- *   tags?: ['food', 'travel'],
- *   page?: 1,
- *   limit?: 50,
- *   sort?: 'amount_desc'|'date_asc'
- * }
  */
-exports.filterTransaction = async (req, res) => {
+export const filterTransaction = async (req: Request, res: Response): Promise<Response> => {
   try {
-    const userId = req.user && req.user.userId;
-    const workspaceId = parseInt(req.params.workspaceId, 10);
+    const userId: number | undefined = req.user?.userId;
+    const workspaceId: number = parseInt(req.params.workspaceId, 10);
     const filter = req.body || {};
 
-    // Basic validation for pagination defaults
     filter.page = Math.max(1, parseInt(filter.page || 1, 10));
     filter.limit = Math.min(500, Math.max(5, parseInt(filter.limit || 50, 10)));
 
     const result = await teamService.filterTransaction(userId, workspaceId, filter);
 
     return res.json(result);
-  } catch (error) {
+  } catch (error: any) {
     console.error('filterTransaction error', error);
     return res.status(error.status || 500).json({ message: error.message || 'Server error' });
   }
