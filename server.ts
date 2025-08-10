@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 // URL -> http://localhost:8383
 // IP -> 127.0.0.1:8383
 
@@ -41,3 +42,25 @@ app.get('/dashboard', (req: Request, res: Response) => {
 
 // Start server
 app.listen(PORT, () => console.log(`Server running at http://localhost:${PORT}`));
+=======
+    // File: server.ts
+
+    import express from 'express';
+    import type { Express } from 'express';
+
+    // SỬA ĐỔI: Thêm đuôi .js vào cuối đường dẫn import
+    import authRoutes from './routes/authRoutes.js';
+    // import teamRoutes from './routes/team.routes';
+
+    const app: Express = express();
+    const PORT: number = 8383;
+
+    // Middleware
+    app.use(express.json());
+
+    // Sử dụng các router đã import
+    app.use('/api/auth', authRoutes);
+    // app.use('/api/teams', teamRoutes);
+
+    app.listen(PORT, () => console.log(`Server has started on: ${PORT}`));
+>>>>>>> origin/pak

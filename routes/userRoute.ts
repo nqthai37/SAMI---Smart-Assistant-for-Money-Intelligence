@@ -7,7 +7,7 @@ const router = Router();
 router.get('/test', userController.testController);
 
 // Private user routes
-router.patch('/profile', userController.updateMyProfile);
+router.patch('/updateprofile', userController.updateMyProfile);
 router.get('/teams', userController.showTeamList);
 router.get('/notifications', userController.getNotification);
 router.post('/change-password', userController.changePassword);

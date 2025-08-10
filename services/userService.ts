@@ -33,8 +33,18 @@ export const testService = () => {
   return { message: 'User service works!', example: [1, 2, 3] };
 };
 
+// Get user profile
+export const getUserProfile = async (userId: number) => {
+  const user = users.find(u => u.id === userId);
+  if (!user) return null;
+
+  // Return a copy of the user object without the password
+  const { password, ...userProfile } = user;
+  return userProfile;
+};
+
 // Update profile
-export const updateMyProfile = async (
+export const updateUserProfile = async (
   userId: number,
   data: { name?: string; email?: string }
 ) => {

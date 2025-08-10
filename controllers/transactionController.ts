@@ -1,4 +1,5 @@
-import * as transactionService from 
+import type { Request, Response } from 'express';
+import * as transactionService from '../services/transactionService.js';
 
 /**
  * @desc    Add a new transaction

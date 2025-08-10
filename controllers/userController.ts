@@ -10,8 +10,29 @@ interface AuthenticatedRequest extends Request {
 }
 
 /**
+ * @desc Get my profile
+ * @route PATCH /api/user/getProfile
+ * @access Private
+ */
+export const getMyProfile = async (req: AuthenticatedRequest, res: Response): Promise<Response> => {
+  try {
+    const userId = req.user?.userId;
+    if (!userId) {
+      return res.status(401).json({ message: 'Unauthorized' });
+    }
+
+    const user = await userService.getUserProfile(userId);
+    return res.json(user);
+  } catch (error: any) {
+    console.error('Error fetching profile:', error);
+    return res.status(error.status || 500).json({ message: error.message || 'Server error' });
+  }
+}
+
+
+/**
  * @desc Update my profile
- * @route PATCH /api/user/profile
+ * @route PATCH /api/user/updateProfile
  * @access Private
  */
 export const updateMyProfile = async (req: AuthenticatedRequest, res: Response): Promise<Response> => {
@@ -21,11 +42,33 @@ export const updateMyProfile = async (req: AuthenticatedRequest, res: Response):
       return res.status(401).json({ message: 'Unauthorized' });
     }
 
-    const updatedUser = await userService.updateMyProfile(userId, req.body);
+    const updatedUser = await userService.updateUserProfile(userId, req.body);
     return res.json({ message: 'Profile updated', user: updatedUser });
   } catch (error: any) {
     console.error('Error updating profile:', error);
     return res.status(error.status || 500).json({ message: error.message || 'Server error' });
+  }
+};
+
+/**
+ * @desc Change user password
+ * @route POST /api/user/change-password
+ * @access Private
+ */
+export const changePassword = async (req: AuthenticatedRequest, res: Response): Promise<Response> => {
+  try {
+    const userID = req.user?.id;
+    if (!userID) {
+      return res.status(401).json({ message: 'Unauthorized' });
+    }
+
+    const { oldPassword, newPassword }: { oldPassword: string; newPassword: string } = req.body;
+    await userService.changePassword(userID, oldPassword, newPassword);
+
+    return res.json({ message: 'Password changed successfully' });
+  } catch (error: any) {
+    console.error('Error changing password:', error);
+    return res.status(400).json({ message: error.message });
   }
 };
 
@@ -48,6 +91,22 @@ export const showTeamList = async (req: AuthenticatedRequest, res: Response): Pr
     return res.json(teamList);
   } catch (error: any) {
     console.error('Error fetching team list:', error);
+    return res.status(500).json({ message: 'Server error' });
+  }
+};
+
+/**
+ * @desc Search Teams
+ * @route GET /api/user/workspaces/search
+ * @access Private
+ */
+export const searchTeam = async (req: Request, res: Response): Promise<Response> => {
+  try {
+    const { query } = req.query;
+    const teams = await userService.searchTeam(query as string);
+    return res.json(teams);
+  } catch (error: any) {
+    console.error('Error searching teams:', error);
     return res.status(500).json({ message: 'Server error' });
   }
 };
@@ -78,46 +137,9 @@ export const getNotification = async (req: AuthenticatedRequest, res: Response):
   }
 };
 
-/**
- * @desc Change user password
- * @route POST /api/user/change-password
- * @access Private
- */
-export const changePassword = async (req: AuthenticatedRequest, res: Response): Promise<Response> => {
-  try {
-    const userID = req.user?.id;
-    if (!userID) {
-      return res.status(401).json({ message: 'Unauthorized' });
-    }
-
-    const { oldPassword, newPassword }: { oldPassword: string; newPassword: string } = req.body;
-    await userService.changePassword(userID, oldPassword, newPassword);
-
-    return res.json({ message: 'Password changed successfully' });
-  } catch (error: any) {
-    console.error('Error changing password:', error);
-    return res.status(400).json({ message: error.message });
-  }
-};
-
-/**
- * @desc Search Teams
- * @route GET /api/user/workspaces/search
- * @access Private
- */
-export const searchTeam = async (req: Request, res: Response): Promise<Response> => {
-  try {
-    const { query } = req.query;
-    const teams = await userService.searchTeam(query as string);
-    return res.json(teams);
-  } catch (error: any) {
-    console.error('Error searching teams:', error);
-    return res.status(500).json({ message: 'Server error' });
-  }
-};
-
 // test Controller
-export const testController = (req: Request, res: Response) => {
-  res.json({ message: 'Controller works!', data: [1, 2, 3] });
+export const testController = async (req: Request, res: Response) => {
+  const message = await userService.testService();
+  return res.json({ message }); 
 };
 
