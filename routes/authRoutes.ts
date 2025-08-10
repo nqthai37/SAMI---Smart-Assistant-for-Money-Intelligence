@@ -4,7 +4,7 @@ import { Router } from 'express';
 
 // SỬA ĐỔI: Dùng import từ cú pháp ES Modules
 // Thêm đuôi .js vào cuối đường dẫn
-import * as AuthController from '../controller/authController.js';
+import * as AuthController from '../controllers/authController.js';
 
 const router = Router();
 

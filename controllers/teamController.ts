@@ -1,129 +1,172 @@
-import { Request, Response } from 'express';
-import * as teamService from '../services/teamService';
+import type { Request, Response } from 'express';
+// import * as teamService from '../services/teamService.js';
 
 /**
- * @desc    Rename a workspace (team)
- * @route   PATCH /api/teams/:workspaceId/rename
- * @access  Private (must have permission)
- * Body: { name: string }
+ * @desc Create a new team
+ * @route POST /api/team
+ * @access Private
  */
-export const renameWorkspace = async (req: Request, res: Response): Promise<Response> => {
-  try {
-    const userId: number | undefined = req.user?.userId;
-    const workspaceId: number = parseInt(req.params.workspaceId, 10);
-    const { name }: { name?: string } = req.body;
-
-    if (!name || typeof name !== 'string' || !name.trim()) {
-      return res.status(400).json({ message: 'Invalid workspace name' });
+export const createTeam = async (req: Request, res: Response): Promise<void> => {
+    try {
+        const { name, description }: { name: string; description?: string } = req.body;
+        const userId: string = (req as any).user.id;
+        const newTeam = await teamService.createNewTeam({ name, description, userId });
+        res.status(201).json(newTeam);
+    } catch (error) {
+        console.error('Error creating team:', error);
+        res.status(500).json({ message: 'Server error' });
     }
-
-    const updated = await teamService.renameWorkspace(userId, workspaceId, name.trim());
-
-    return res.json({ message: 'Workspace renamed', data: updated });
-  } catch (error: any) {
-    console.error('renameWorkspace error', error);
-    return res.status(error.status || 500).json({ message: error.message || 'Server error' });
-  }
 };
 
 /**
- * @desc    Permit a member to view reports (grant or revoke)
- * @route   POST /api/teams/:workspaceId/members/:memberId/permission/report
- * @access  Private (must be admin/owner)
- * Body: { permit: boolean }
+ * @desc Get the details of a team
+ * @route GET /api/team/:id
+ * @access Private
  */
-export const permitMemberViewReport = async (req: Request, res: Response): Promise<Response> => {
-  try {
-    const actorId: number | undefined = req.user?.userId;
-    const workspaceId: number = parseInt(req.params.workspaceId, 10);
-    const memberId: number = parseInt(req.params.memberId, 10);
-    const { permit }: { permit?: boolean } = req.body;
-
-    if (typeof permit !== 'boolean') {
-      return res.status(400).json({ message: 'permit must be boolean' });
+export const getTeamDetails = async (req: Request, res: Response): Promise<void> => {
+    try {
+        const teamId: string = req.params.id;
+        const userId: string = (req as any).user.id;
+        const teamDetails = await teamService.getTeamDetails(teamId, userId);
+        res.status(200).json(teamDetails);
+    } catch (error) {
+        console.error('Error fetching team details:', error);
+        res.status(500).json({ message: 'Server error' });
     }
-
-    const result = await teamService.permitMemberViewReport(actorId, workspaceId, memberId, permit);
-
-    return res.json({
-      message: permit ? 'Permission granted' : 'Permission revoked',
-      data: result
-    });
-  } catch (error: any) {
-    console.error('permitMemberViewReport error', error);
-    return res.status(error.status || 500).json({ message: error.message || 'Server error' });
-  }
 };
 
 /**
- * @desc    Get transactions for a workspace (with pagination)
- * @route   GET /api/teams/:workspaceId/transactions
- * @access  Private (member of workspace)
+ * @desc Delete a team
+ * @route DELETE /api/team/:id
+ * @access Private
  */
-export const getTransactions = async (req: Request, res: Response): Promise<Response> => {
-  try {
-    const userId: number | undefined = req.user?.userId;
-    const workspaceId: number = parseInt(req.params.workspaceId, 10);
-    const { page = '1', limit = '20', sort } = req.query;
-
-    const result = await teamService.getTransactions(userId, workspaceId, {
-      page: parseInt(page as string, 10),
-      limit: parseInt(limit as string, 10),
-      sort: sort as string | undefined
-    });
-
-    return res.json(result);
-  } catch (error: any) {
-    console.error('getTransactions error', error);
-    return res.status(error.status || 500).json({ message: error.message || 'Server error' });
-  }
-};
-
-/**
- * @desc    Search transactions in a workspace
- * @route   GET /api/teams/:workspaceId/transactions/search
- * @access  Private
- */
-export const searchTransaction = async (req: Request, res: Response): Promise<Response> => {
-  try {
-    const userId: number | undefined = req.user?.userId;
-    const workspaceId: number = parseInt(req.params.workspaceId, 10);
-    const q: string = (req.query.q as string || '').trim();
-    const page: number = parseInt(req.query.page as string || '1', 10);
-    const limit: number = parseInt(req.query.limit as string || '25', 10);
-
-    if (!q) {
-      return res.status(400).json({ message: 'Query param q is required' });
+export const deleteTeam = async (req: Request, res: Response): Promise<void> => {
+    try {
+        const teamId: string = req.params.id;
+        const userId: string = (req as any).user.id;
+        await teamService.removeTeam(teamId, userId);
+        res.status(204).send();
+    } catch (error: any) {
+        console.error('Error deleting team:', error);
+        if (error.message === 'You do not have permission to delete this team') {
+            res.status(403).json({ message: error.message });
+        } else {
+            res.status(500).json({ message: 'Server error' });
+        }
     }
-
-    const result = await teamService.searchTransaction(userId, workspaceId, { q, page, limit });
-
-    return res.json(result);
-  } catch (error: any) {
-    console.error('searchTransaction error', error);
-    return res.status(error.status || 500).json({ message: error.message || 'Server error' });
-  }
 };
 
 /**
- * @desc    Filter transactions by criteria
- * @route   POST /api/teams/:workspaceId/transactions/filter
- * @access  Private
+ * @desc Invite a member to a team
+ * @route POST /api/team/invite
+ * @access Private
  */
-export const filterTransaction = async (req: Request, res: Response): Promise<Response> => {
-  try {
-    const userId: number | undefined = req.user?.userId;
-    const workspaceId: number = parseInt(req.params.workspaceId, 10);
-    const filter = req.body || {};
+export const inviteMember = async (req: Request, res: Response): Promise<void> => {
+    try {
+        const { teamId, email }: { teamId: string; email: string } = req.body;
+        const token = await teamService.generateInvitationToken(teamId);
+        await teamService.sendInvitationEmail(email, token);
+        res.status(200).json({ message: 'Invitation sent successfully' });
+    } catch (error) {
+        console.error('Error sending invitation:', error);
+        res.status(500).json({ message: 'Server error' });
+    }
+};
 
-    filter.page = Math.max(1, parseInt(filter.page || 1, 10));
-    filter.limit = Math.min(500, Math.max(5, parseInt(filter.limit || 50, 10)));
+/**
+ * @desc Kick a member from a team
+ * @route POST /api/team/kick
+ * @access Private
+ */
+export const kickMember = async (req: Request, res: Response): Promise<void> => {
+    try {
+        const { teamId, memberId }: { teamId: string; memberId: string } = req.body;
+        const userId: string = (req as any).user.id;
+        await teamService.kickMemberFromTeam(teamId, memberId, userId);
+        res.status(200).json({ message: 'Member kicked successfully' });
+    } catch (error) {
+        console.error('Error kicking member:', error);
+        res.status(500).json({ message: 'Server error' });
+    }
+};
 
-    const result = await teamService.filterTransaction(userId, workspaceId, filter);
+/**
+ * @desc Update member role in a team
+ * @route POST /api/team/update-role
+ * @access Private
+ */
+export const updateMemberRole = async (req: Request, res: Response): Promise<void> => {
+    try {
+        const { teamId, memberId, newRole }: { teamId: string; memberId: string; newRole: string } = req.body;
+        const userId: string = (req as any).user.id;
+        await teamService.updateMemberRole(teamId, memberId, newRole, userId);
+        res.status(200).json({ message: 'Member role updated successfully' });
+    } catch (error) {
+        console.error('Error updating member role:', error);
+        res.status(500).json({ message: 'Server error' });
+    }
+};
 
-    return res.json(result);
-  } catch (error: any) {
-    console.error('filterTransaction error', error);
-    return res.status(error.status || 500).json({ message: error.message || 'Server error' });
-  }
+/**
+ * @desc Set budget for a team
+ * @route POST /api/team/set-budget
+ */
+export const setTeamBudget = async (req: Request, res: Response): Promise<void> => {
+    try {
+        const { teamId, budget }: { teamId: string; budget: number } = req.body;
+        const userId: string = (req as any).user.id;
+        await teamService.setTeamBudget(teamId, budget, userId);
+        res.status(200).json({ message: 'Team budget set successfully' });
+    } catch (error) {
+        console.error('Error setting team budget:', error);
+        res.status(500).json({ message: 'Server error' });
+    }
+};
+
+/**
+ * @desc Set income goal for a team
+ * @route POST /api/team/set-income-goal
+ */
+export const setTeamIncomeGoal = async (req: Request, res: Response): Promise<void> => {
+    try {
+        const { teamId, incomeGoal }: { teamId: string; incomeGoal: number } = req.body;
+        const userId: string = (req as any).user.id;
+        await teamService.setTeamIncomeGoal(teamId, incomeGoal, userId);
+        res.status(200).json({ message: 'Team income goal set successfully' });
+    } catch (error) {
+        console.error('Error setting team income goal:', error);
+        res.status(500).json({ message: 'Server error' });
+    }
+};
+
+/**
+ * @desc Set/change currency for a team
+ * @route POST /api/team/set-currency
+ */
+export const setCurrency = async (req: Request, res: Response): Promise<void> => {
+    try {
+        const { teamId, currency }: { teamId: string; currency: string } = req.body;
+        const userId: string = (req as any).user.id;
+        await teamService.setTeamCurrency(teamId, currency, userId);
+        res.status(200).json({ message: 'Team currency set successfully' });
+    } catch (error) {
+        console.error('Error setting team currency:', error);
+        res.status(500).json({ message: 'Server error' });
+    }
+};
+
+/**
+ * @desc Set income/expense category for a team
+ * @route POST /api/team/set-category
+ */
+export const setCategory = async (req: Request, res: Response): Promise<void> => {
+    try {
+        const { teamId, category }: { teamId: string; category: string } = req.body;
+        const userId: string = (req as any).user.id;
+        await teamService.setTeamCategory(teamId, category, userId);
+        res.status(200).json({ message: 'Team category set successfully' });
+    } catch (error) {
+        console.error('Error setting team category:', error);
+        res.status(500).json({ message: 'Server error' });
+    }
 };

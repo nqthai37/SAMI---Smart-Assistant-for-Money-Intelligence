@@ -1,7 +1,7 @@
 // File: controllers/authController.ts
 
 import type { Request, Response } from 'express';
-import { AuthService } from '../service/authService.js';
+import { AuthService } from '../services/authService.js';
 
 const register = async (req: Request, res: Response) => {
     try {
@@ -49,33 +49,33 @@ const login = async (req: Request, res: Response) => {
 };
 
 
-const forgotPassword = async (req: Request, res: Response) => {
-    try {
-        const { email } = req.body;
+// const forgotPassword = async (req: Request, res: Response) => {
+//     try {
+//         const { email } = req.body;
 
-        // Validate input
-        if (!email) {
-            return res.status(400).json({ message: "Email là bắt buộc." });
-        }
+//         // Validate input
+//         if (!email) {
+//             return res.status(400).json({ message: "Email là bắt buộc." });
+//         }
 
-        // Call forgot password service
-        await AuthService.forgotPassword(email);
+//         // Call forgot password service
+//         await AuthService.forgotPassword(email);
 
-        return res.status(200).json({
-            message: "Đã gửi email khôi phục mật khẩu."
-        });
+//         return res.status(200).json({
+//             message: "Đã gửi email khôi phục mật khẩu."
+//         });
 
-    } catch (error: any) {
-        return res.status(error.statusCode || 500).json({
-            message: error.message || "Đã có lỗi không mong muốn xảy ra."
-        });
-    }
-};
+//     } catch (error: any) {
+//         return res.status(error.statusCode || 500).json({
+//             message: error.message || "Đã có lỗi không mong muốn xảy ra."
+//         });
+//     }
+// };
 
 export {
     register,
     login,
-    forgotPassword,
+    // forgotPassword,
 };
 
 
