@@ -24,12 +24,58 @@ const register = async (req: Request, res: Response) => {
 };
 
 const login = async (req: Request, res: Response) => {
-    // Tương tự, bạn sẽ tạo hàm login trong Service và gọi nó ở đây
-    res.status(501).json({ message: "Chức năng đăng nhập chưa được cài đặt." });
+    try {
+        const { email, password } = req.body;
+
+        // Validate input
+        if (!email || !password) {
+            return res.status(400).json({ message: "Email và mật khẩu là bắt buộc." });
+        }
+
+        // Call login service
+        const user = await AuthService.login(email, password);
+
+        // If login is successful, return user data
+        return res.status(200).json({
+            message: "Đăng nhập thành công!",
+            user,
+        });
+
+    } catch (error: any) {
+        return res.status(error.statusCode || 500).json({
+            message: error.message || "Đã có lỗi không mong muốn xảy ra."
+        });
+    }
 };
 
+
+const forgotPassword = async (req: Request, res: Response) => {
+    try {
+        const { email } = req.body;
+
+        // Validate input
+        if (!email) {
+            return res.status(400).json({ message: "Email là bắt buộc." });
+        }
+
+        // Call forgot password service
+        await AuthService.forgotPassword(email);
+
+        return res.status(200).json({
+            message: "Đã gửi email khôi phục mật khẩu."
+        });
+
+    } catch (error: any) {
+        return res.status(error.statusCode || 500).json({
+            message: error.message || "Đã có lỗi không mong muốn xảy ra."
+        });
+    }
+};
 
 export {
     register,
     login,
+    forgotPassword,
 };
+
+
