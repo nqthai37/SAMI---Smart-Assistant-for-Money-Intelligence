@@ -59,11 +59,30 @@ const forgotPassword = async (req: Request, res: Response) => {
         }
 
         // Call forgot password service
-        await AuthService.forgotPassword(email);
+        const result = await AuthService.forgotPassword(email);
 
-        return res.status(200).json({
-            message: "Đã gửi email khôi phục mật khẩu."
+        return res.status(200).json(result);
+
+    } catch (error: any) {
+        return res.status(error.statusCode || 500).json({
+            message: error.message || "Đã có lỗi không mong muốn xảy ra."
         });
+    }
+};
+
+const resetPassword = async (req: Request, res: Response) => {
+    try {
+        const { token, newPassword } = req.body;
+
+        // Validate input
+        if (!token || !newPassword) {
+            return res.status(400).json({ message: "Token và mật khẩu mới là bắt buộc." });
+        }
+
+        // Call reset password service
+        const result = await AuthService.resetPassword(token, newPassword);
+
+        return res.status(200).json(result);
 
     } catch (error: any) {
         return res.status(error.statusCode || 500).json({
@@ -76,6 +95,7 @@ export {
     register,
     login,
     forgotPassword,
+    resetPassword,
 };
 
 
