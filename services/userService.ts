@@ -1,3 +1,6 @@
+import { UserModel } from "../model/UserModel.ts";
+import bcrypt from 'bcrypt';
+
 // src/services/userService.ts
 interface PaginationOptions {
   page?: number | undefined;
@@ -35,11 +38,11 @@ export const testService = () => {
 
 // Get user profile
 export const getUserProfile = async (userId: number) => {
-  const user = users.find(u => u.id === userId);
-  if (!user) return null;
-
-  // Return a copy of the user object without the password
-  const { password, ...userProfile } = user;
+  const user = await UserModel.findById(userId);
+  if (!user) {
+    throw new Error('User not found');
+  }
+  const { passwordHash, ...userProfile } = user;
   return userProfile;
 };
 
@@ -56,6 +59,32 @@ export const updateUserProfile = async (
 
   return user;
 };
+
+// Change password
+// export const verifyOldPassword = async (userId: number, oldPassword: string) => {
+//   const user = await UserModel.findById(userId);
+//   if (!user) {
+//     throw new Error('User not found');
+//   }
+//   return bcrypt.compare(oldPassword, user.passwordHash);
+// }
+export const changeUserPassword = async (userId: number, oldPassword: string, newPassword: string) => {
+  const user = await UserModel.findById(userId);
+  if (!user) {
+    throw new Error('User not found');
+  }
+
+  const isMatch = await bcrypt.compare(oldPassword, user.passwordHash);
+  if (!isMatch) {
+    throw new Error('Old password is incorrect');
+  }
+
+  const newPasswordHash = await bcrypt.hash(newPassword, 10);
+  user.passwordHash = newPasswordHash;
+  await user.save();
+
+  return { message: 'Password changed successfully' };
+}
 
 // Show team list with pagination
 export const showTeamList = async (
@@ -94,19 +123,7 @@ export const getNotification = async (
   return notifications;
 };
 
-// Change password
-export const changePassword = async (
-  userId: number,
-  oldPassword: string,
-  newPassword: string
-) => {
-  const user = users.find(u => u.id === userId);
-  if (!user) throw new Error('User not found');
-  if (user.password !== oldPassword) throw new Error('Old password is incorrect');
 
-  user.password = newPassword;
-  return { success: true };
-};
 
 // Search teams (tìm trong teams)
 export const searchTeam = async (query: string) => {
