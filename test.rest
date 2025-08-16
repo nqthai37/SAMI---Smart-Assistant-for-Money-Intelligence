@@ -49,3 +49,42 @@ Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6OCwiaWF0IjoxN
 {
   "target": 120
 }
+
+###
+PATCH http://localhost:8383/api/teams/6/currency
+Content-Type: application/json
+Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6OCwiaWF0IjoxNzU1MzUyNjg0LCJleHAiOjE3NTUzNTYyODR9.MuQMJdSuzg7fvEk6hpGz1sEbqZyXoNDVrh1-OyTrH0Q
+
+{
+  "currency": "VND"
+}
+
+###
+PATCH http://localhost:8383/api/teams/6/categories
+Content-Type: application/json
+Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6OCwiaWF0IjoxNzU1MzUyNjg0LCJleHAiOjE3NTUzNTYyODR9.MuQMJdSuzg7fvEk6hpGz1sEbqZyXoNDVrh1-OyTrH0Q
+
+{
+  "name": "Ăn uống",
+  "icon": "🍔"
+}
+
+###
+# Test đổi tên nhóm
+PATCH http://localhost:8383/api/teams/6/name
+Content-Type: application/json
+Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6OCwiaWF0IjoxNzU1MzUyNjg0LCJleHAiOjE3NTUzNTYyODR9.MuQMJdSuzg7fvEk6hpGz1sEbqZyXoNDVrh1-OyTrH0Q
+
+{
+  "name": "Tên Nhóm Mới Cực Ngầu"
+}
+
+###
+# Test cho phép thành viên xem báo cáo
+PATCH http://localhost:8383/api/teams/6/report-permission
+Content-Type: application/json
+Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6OCwiaWF0IjoxNzU1MzUyNjg0LCJleHAiOjE3NTUzNTYyODR9.MuQMJdSuzg7fvEk6hpGz1sEbqZyXoNDVrh1-OyTrH0Q
+
+{
+  "allow": true
+}

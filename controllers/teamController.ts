@@ -97,128 +97,39 @@ const setCategories: RequestHandler = async (req, res) => {
   try {
     const teamId = Number(req.params.id);
     const userId = (req as AuthenticatedRequest).user.id;
-    const { categories } = req.body as { categories: string[] };
-    const result = await TeamService.setFinanceCategories(teamId, userId, categories);
+    const { name, icon } = req.body as { name: string; icon: string };
+    const result = await TeamService.setFinanceCategories(teamId, userId, { name, icon });
     return res.status(200).json({ message: 'Categories updated', ...result });
   } catch (err: any) {
     return res.status(err?.statusCode ?? 500).json({ message: err?.message ?? 'Server error' });
   }
 };
 
-// /**
-//  * @desc Invite a member to a team
-//  * @route POST /api/team/invite
-//  * @access Private
-//  */
-// export const inviteMember = async (req: Request, res: Response): Promise<void> => {
-//     try {
-//         const { teamId, email }: { teamId: string; email: string } = req.body;
-//         const token = await teamService.generateInvitationToken(teamId);
-//         await teamService.sendInvitationEmail(email, token);
-//         res.status(200).json({ message: 'Invitation sent successfully' });
-//     } catch (error) {
-//         console.error('Error sending invitation:', error);
-//         res.status(500).json({ message: 'Server error' });
-//     }
-// };
+const renameWorkspace: RequestHandler = async (req, res) => {
+  try {
+    const teamId = Number(req.params.id);
+    const userId = (req as AuthenticatedRequest).user.id;
+    const { name } = req.body;
+    const result = await TeamService.renameWorkspaceName(teamId, userId, name);
+    return res.status(200).json({ message: 'Tên nhóm đã được cập nhật', ...result });
+  } catch (err: any) {
+    return res.status(err?.statusCode ?? 500).json({ message: err?.message ?? 'Server error' });
+  }
+};
 
-// /**
-//  * @desc Kick a member from a team
-//  * @route POST /api/team/kick
-//  * @access Private
-//  */
-// export const kickMember = async (req: Request, res: Response): Promise<void> => {
-//     try {
-//         const { teamId, memberId }: { teamId: string; memberId: string } = req.body;
-//         const userId: string = (req as any).user.id;
-//         await teamService.kickMemberFromTeam(teamId, memberId, userId);
-//         res.status(200).json({ message: 'Member kicked successfully' });
-//     } catch (error) {
-//         console.error('Error kicking member:', error);
-//         res.status(500).json({ message: 'Server error' });
-//     }
-// };
+/** PATCH /api/teams/:id/report-permission (owner + admin) */
+const permitMemberViewReport: RequestHandler = async (req, res) => {
+  try {
+    const teamId = Number(req.params.id);
+    const userId = (req as AuthenticatedRequest).user.id;
+    const { allow } = req.body;
+    const result = await TeamService.permitReportAccess(teamId, userId, Boolean(allow));
+    return res.status(200).json({ message: 'Quyền xem báo cáo đã được cập nhật', ...result });
+  } catch (err: any) {
+    return res.status(err?.statusCode ?? 500).json({ message: err?.message ?? 'Server error' });
+  }
+};
 
-// /**
-//  * @desc Update member role in a team
-//  * @route POST /api/team/update-role
-//  * @access Private
-//  */
-// export const updateMemberRole = async (req: Request, res: Response): Promise<void> => {
-//     try {
-//         const { teamId, memberId, newRole }: { teamId: string; memberId: string; newRole: string } = req.body;
-//         const userId: string = (req as any).user.id;
-//         await teamService.updateMemberRole(teamId, memberId, newRole, userId);
-//         res.status(200).json({ message: 'Member role updated successfully' });
-//     } catch (error) {
-//         console.error('Error updating member role:', error);
-//         res.status(500).json({ message: 'Server error' });
-//     }
-// };
-
-// /**
-//  * @desc Set budget for a team
-//  * @route POST /api/team/set-budget
-//  */
-// export const setTeamBudget = async (req: Request, res: Response): Promise<void> => {
-//     try {
-//         const { teamId, budget }: { teamId: string; budget: number } = req.body;
-//         const userId: string = (req as any).user.id;
-//         await teamService.setTeamBudget(teamId, budget, userId);
-//         res.status(200).json({ message: 'Team budget set successfully' });
-//     } catch (error) {
-//         console.error('Error setting team budget:', error);
-//         res.status(500).json({ message: 'Server error' });
-//     }
-// };
-
-// /**
-//  * @desc Set income goal for a team
-//  * @route POST /api/team/set-income-goal
-//  */
-// export const setTeamIncomeGoal = async (req: Request, res: Response): Promise<void> => {
-//     try {
-//         const { teamId, incomeGoal }: { teamId: string; incomeGoal: number } = req.body;
-//         const userId: string = (req as any).user.id;
-//         await teamService.setTeamIncomeGoal(teamId, incomeGoal, userId);
-//         res.status(200).json({ message: 'Team income goal set successfully' });
-//     } catch (error) {
-//         console.error('Error setting team income goal:', error);
-//         res.status(500).json({ message: 'Server error' });
-//     }
-// };
-
-// /**
-//  * @desc Set/change currency for a team
-//  * @route POST /api/team/set-currency
-//  */
-// export const setCurrency = async (req: Request, res: Response): Promise<void> => {
-//     try {
-//         const { teamId, currency }: { teamId: string; currency: string } = req.body;
-//         const userId: string = (req as any).user.id;
-//         await teamService.setTeamCurrency(teamId, currency, userId);
-//         res.status(200).json({ message: 'Team currency set successfully' });
-//     } catch (error) {
-//         console.error('Error setting team currency:', error);
-//         res.status(500).json({ message: 'Server error' });
-//     }
-// };
-
-// /**
-//  * @desc Set income/expense category for a team
-//  * @route POST /api/team/set-category
-//  */
-// export const setCategory = async (req: Request, res: Response): Promise<void> => {
-//     try {
-//         const { teamId, category }: { teamId: string; category: string } = req.body;
-//         const userId: string = (req as any).user.id;
-//         await teamService.setTeamCategory(teamId, category, userId);
-//         res.status(200).json({ message: 'Team category set successfully' });
-//     } catch (error) {
-//         console.error('Error setting team category:', error);
-//         res.status(500).json({ message: 'Server error' });
-//     }
-// };
 
 export {
     createTeam,
@@ -227,4 +138,6 @@ export {
     setIncomeGoal,
     setCurrency,
     setCategories,
+    renameWorkspace,
+    permitMemberViewReport,
 };

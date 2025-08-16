@@ -72,13 +72,26 @@ export const TeamModel = {
       select: { id: true, currency: true, updatedAt: true },
     }),
 
-  updateCategories: async (teamId: number, categories: string[]) =>
+  updateCategories: async (teamId: number, categories: Prisma.JsonValue) =>
     prisma.teams.update({
       where: { id: teamId },
       data: { categories, updatedAt: new Date() },
       select: { id: true, categories: true, updatedAt: true },
     }),
 
+  updateName: async (teamId: number, newName: string) =>
+    prisma.teams.update({
+      where: { id: teamId },
+      data: { teamName: newName, updatedAt: new Date() },
+      select: { id: true, teamName: true, updatedAt: true },
+    }),
+  
+  updateReportPermission: async (teamId: number, allow: boolean) =>
+    prisma.teams.update({
+      where: { id: teamId },
+      data: { allowMemberViewReport: allow, updatedAt: new Date() },
+      select: { id: true, allowMemberViewReport: true, updatedAt: true },
+    }),
   // ====== DUNGS CHUNG TRONG SERVICE ======
 
   /**
@@ -89,7 +102,12 @@ export const TeamModel = {
       where: { id: teamId },
       select: { id: true, ownerId: true },
     }),
-
+  
+  getCategories: async (teamId: number) =>
+    prisma.teams.findUnique({
+      where: { id: teamId },
+      select: { categories: true },
+    }),
   /**
    * Đếm membership theo role
    */
