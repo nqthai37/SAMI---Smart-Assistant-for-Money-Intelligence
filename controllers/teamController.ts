@@ -27,43 +27,83 @@ const createTeam :  RequestHandler = async (req, res) => {
     }
 };
 
-// /**
-//  * @desc Get the details of a team
-//  * @route GET /api/team/:id
-//  * @access Private
-//  */
-// export const getTeamDetails = async (req: Request, res: Response): Promise<void> => {
-//     try {
-//         const teamId: string = req.params.id;
-//         const userId: string = (req as any).user.id;
-//         const teamDetails = await teamService.getTeamDetails(teamId, userId);
-//         res.status(200).json(teamDetails);
-//     } catch (error) {
-//         console.error('Error fetching team details:', error);
-//         res.status(500).json({ message: 'Server error' });
-//     }
-// };
+/**
+ * @desc Delete a team
+ * @route DELETE /api/team/:id
+ * @access Private
+ */
+const deleteTeam: RequestHandler = async (req, res) => {
+  try {
+    const teamId = Number(req.params.id);
+    const userId = (req as AuthenticatedRequest).user.id;
 
-// /**
-//  * @desc Delete a team
-//  * @route DELETE /api/team/:id
-//  * @access Private
-//  */
-// export const deleteTeam = async (req: Request, res: Response): Promise<void> => {
-//     try {
-//         const teamId: string = req.params.id;
-//         const userId: string = (req as any).user.id;
-//         await teamService.removeTeam(teamId, userId);
-//         res.status(204).send();
-//     } catch (error: any) {
-//         console.error('Error deleting team:', error);
-//         if (error.message === 'You do not have permission to delete this team') {
-//             res.status(403).json({ message: error.message });
-//         } else {
-//             res.status(500).json({ message: 'Server error' });
-//         }
-//     }
-// };
+    if (Number.isNaN(teamId)) {
+      return res.status(400).json({ message: 'Invalid team id' });
+    }
+
+    await TeamService.deleteTeam(teamId, userId);
+    return res.status(204).send();
+  } catch (error: any) {
+    console.error('Error deleting team:', error);
+
+    const status = error?.statusCode ?? 500;
+    const msg =
+      error?.message ??
+      (status === 500 ? 'Server error' : 'Unable to delete team');
+    return res.status(status).json({ message: msg });
+  }
+};
+
+const setBudget: RequestHandler = async (req, res) => {
+  try {
+    const teamId = Number(req.params.id);
+    const userId = (req as AuthenticatedRequest).user.id;
+    const { amount } = req.body;
+    const result = await TeamService.setBudgetAmount(teamId, userId, Number(amount));
+    return res.status(200).json({ message: 'Budget updated', ...result });
+  } catch (err: any) {
+    return res.status(err?.statusCode ?? 500).json({ message: err?.message ?? 'Server error' });
+  }
+};
+
+/** PATCH /api/teams/:id/income-goal  (owner) */
+const setIncomeGoal: RequestHandler = async (req, res) => {
+  try {
+    const teamId = Number(req.params.id);
+    const userId = (req as AuthenticatedRequest).user.id;
+    const { target } = req.body;
+    const result = await TeamService.setIncomeTarget(teamId, userId, Number(target));
+    return res.status(200).json({ message: 'Income goal updated', ...result });
+  } catch (err: any) {
+    return res.status(err?.statusCode ?? 500).json({ message: err?.message ?? 'Server error' });
+  }
+};
+
+/** PATCH /api/teams/:id/currency  (owner + admin) */
+const setCurrency: RequestHandler = async (req, res) => {
+  try {
+    const teamId = Number(req.params.id);
+    const userId = (req as AuthenticatedRequest).user.id;
+    const { currency } = req.body;
+    const result = await TeamService.setPreferredCurrency(teamId, userId, String(currency));
+    return res.status(200).json({ message: 'Currency updated', ...result });
+  } catch (err: any) {
+    return res.status(err?.statusCode ?? 500).json({ message: err?.message ?? 'Server error' });
+  }
+};
+
+/** PATCH /api/teams/:id/categories  (admin) */
+const setCategories: RequestHandler = async (req, res) => {
+  try {
+    const teamId = Number(req.params.id);
+    const userId = (req as AuthenticatedRequest).user.id;
+    const { categories } = req.body as { categories: string[] };
+    const result = await TeamService.setFinanceCategories(teamId, userId, categories);
+    return res.status(200).json({ message: 'Categories updated', ...result });
+  } catch (err: any) {
+    return res.status(err?.statusCode ?? 500).json({ message: err?.message ?? 'Server error' });
+  }
+};
 
 // /**
 //  * @desc Invite a member to a team
@@ -182,4 +222,9 @@ const createTeam :  RequestHandler = async (req, res) => {
 
 export {
     createTeam,
+    deleteTeam,
+    setBudget,
+    setIncomeGoal,
+    setCurrency,
+    setCategories,
 };
