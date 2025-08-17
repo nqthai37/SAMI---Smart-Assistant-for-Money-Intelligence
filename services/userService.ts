@@ -1,3 +1,7 @@
+import { Prisma } from '@prisma/client';
+import { prisma } from '../lib/prisma.js';
+import { UserModel } from '../model/UserModel.js';
+import bcrypt from 'bcryptjs';
 // src/services/userService.ts
 interface PaginationOptions {
   page?: number | undefined;
@@ -5,37 +9,10 @@ interface PaginationOptions {
   unreadOnly?: boolean | undefined;
 }
 
-// Dữ liệu giả lập để test
-let users = [
-  {
-    id: 1,
-    name: 'James',
-    email: 'james@example.com',
-    password: '123456',
-    teams: ['Team A', 'Team B', 'Team C'],
-    notifications: [
-      { id: 101, message: 'Welcome!', read: false },
-      { id: 102, message: 'New update available', read: true }
-    ]
-  },
-  {
-    id: 2,
-    name: 'Anna',
-    email: 'anna@example.com',
-    password: '654321',
-    teams: ['Team D'],
-    notifications: []
-  }
-];
-
-// Test service
-export const testService = () => {
-  return { message: 'User service works!', example: [1, 2, 3] };
-};
 
 // Get user profile
 export const getUserProfile = async (userId: number) => {
-  const user = users.find(u => u.id === userId);
+  const user = await UserModel.findByUserID(userId);
   if (!user) return null;
 
   // Return a copy of the user object without the password
@@ -44,18 +21,40 @@ export const getUserProfile = async (userId: number) => {
 };
 
 // Update profile
+// ...existing code...
+// Update profile
 export const updateUserProfile = async (
   userId: number,
-  data: { name?: string; email?: string }
+  data: {
+    firstName?: string;
+    lastName?: string;
+    email?: string;
+    dateOfBirth?: string | Date;
+    gender?: string;
+  }
 ) => {
-  const user = users.find(u => u.id === userId);
-  if (!user) return null;
+  // Chuyển đổi dateOfBirth sang đối tượng Date nếu nó là string
+  if (data.dateOfBirth && typeof data.dateOfBirth === 'string') {
+    data.dateOfBirth = new Date(data.dateOfBirth);
+  }
 
-  if (data.name) user.name = data.name;
-  if (data.email) user.email = data.email;
+  const updatedUser = await prisma.user.update({
+    where: { id: userId },
+    data: {
+      ...data,
+      updated_at: new Date(), // Cập nhật trường updated_at
+    },
+  });
 
-  return user;
+  if (!updatedUser) {
+    return null;
+  }
+
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  const { passwordHash, ...userProfile } = updatedUser;
+  return userProfile;
 };
+
 
 // Show team list with pagination
 export const showTeamList = async (
@@ -100,11 +99,22 @@ export const changePassword = async (
   oldPassword: string,
   newPassword: string
 ) => {
-  const user = users.find(u => u.id === userId);
+  const user = await UserModel.findByUserID(userId);
   if (!user) throw new Error('User not found');
-  if (user.password !== oldPassword) throw new Error('Old password is incorrect');
+  
+  // Verify old password by comparing with hashed password
+  const isOldPasswordValid = await bcrypt.compare(oldPassword, user.passwordHash);
+  if (!isOldPasswordValid) throw new Error('Old password is incorrect');
 
-  user.password = newPassword;
+  // Hash new password before saving
+  const newPasswordHash = await bcrypt.hash(newPassword, 10);
+  
+  // Update password in database
+  await prisma.user.update({
+    where: { id: userId },
+    data: { passwordHash: newPasswordHash }
+  });
+
   return { success: true };
 };
 

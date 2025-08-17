@@ -3,8 +3,6 @@ import * as userController from '../controllers/userController.js';
 
 const router = Router();
 
-// Public test route
-router.get('/test', userController.testController);
 
 // Private user routes
 router.patch('/updateprofile', userController.updateMyProfile);

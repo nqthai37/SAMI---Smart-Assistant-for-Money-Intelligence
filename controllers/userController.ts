@@ -55,22 +55,34 @@ export const updateMyProfile = async (req: AuthenticatedRequest, res: Response):
  * @route POST /api/user/change-password
  * @access Private
  */
+// export const changePassword = async (req: AuthenticatedRequest, res: Response): Promise<Response> => {
+//   try {
+//     const userID = req.user?.id;
+//     if (!userID) {
+//       return res.status(401).json({ message: 'Unauthorized' });
+//     }
+
+//     const { oldPassword, newPassword }: { oldPassword: string; newPassword: string } = req.body;
+//     await userService.changePassword(userID, oldPassword, newPassword);
+
+//     return res.json({ message: 'Password changed successfully' });
+//   } catch (error: any) {
+//     console.error('Error changing password:', error);
+//     return res.status(400).json({ message: error.message });
+//   }
+// };
+
 export const changePassword = async (req: AuthenticatedRequest, res: Response): Promise<Response> => {
   try {
-    const userID = req.user?.id;
-    if (!userID) {
-      return res.status(401).json({ message: 'Unauthorized' });
-    }
-
-    const { oldPassword, newPassword }: { oldPassword: string; newPassword: string } = req.body;
+    const { userID, oldPassword, newPassword } = req.body;
     await userService.changePassword(userID, oldPassword, newPassword);
-
     return res.json({ message: 'Password changed successfully' });
   } catch (error: any) {
     console.error('Error changing password:', error);
     return res.status(400).json({ message: error.message });
   }
 };
+
 
 /**
  * @desc Show team list
@@ -137,9 +149,4 @@ export const getNotification = async (req: AuthenticatedRequest, res: Response):
   }
 };
 
-// test Controller
-export const testController = async (req: Request, res: Response) => {
-  const message = await userService.testService();
-  return res.json({ message }); 
-};
 

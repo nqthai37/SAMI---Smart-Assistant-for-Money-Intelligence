@@ -1,145 +1,118 @@
+// controllers/transactionController.ts
 import type { Request, Response } from 'express';
-import * as transactionService from '../services/transactionService.js';
+import * as TransactionService from '../services/transactionService.js';
+// import '../types/express';
 
-/**
- * @desc    Add a new transaction
- * @route   POST /api/transactions
- * @access  Private
- */
-exports.addTransaction = async (req, res) => {
+
+
+const addTransaction = async (req: Request, res: Response) => {
   try {
-    const userId = req.user && req.user.userId;
-    const payload = req.body; // expected { amount, type, date, categoryId, note, ... }
+    const userId = req.user?.userId;
+    const payload = req.body;
 
-    const created = await transactionService.addTransaction(userId, payload);
+    const created = await TransactionService.addTransactionRecord(payload, userId);
 
-    // 201 Created
     return res.status(201).json({
       message: 'Transaction created',
-      data: created
+      data: created,
     });
-  } catch (error) {
+  } catch (error: any) {
     console.error('addTransaction error', error);
-    return res.status(error.status || 500).json({ message: error.message || 'Server error' });
+    return res.status(error.statusCode || 500).json({ message: error.message || 'Server error' });
   }
 };
 
-/**
- * @desc    Edit an existing transaction (direct edit if permitted)
- * @route   PUT /api/transactions/:id
- * @access  Private
- */
-exports.editTransaction = async (req, res) => {
+const editTransaction = async (  req: Request<{ id: string }>, 
+  res: Response) => {
   try {
-    const userId = req.user && req.user.userId;
+    const userId = req.user?.userId;
     const transactionId = parseInt(req.params.id, 10);
     const updates = req.body;
 
-    const updated = await transactionService.editTransaction(userId, transactionId, updates);
+    const updated = await TransactionService.editTransactionItem(transactionId, updates, userId);
 
     return res.json({
       message: 'Transaction updated',
-      data: updated
+      data: updated,
     });
-  } catch (error) {
+  } catch (error: any) {
     console.error('editTransaction error', error);
-    return res.status(error.status || 500).json({ message: error.message || 'Server error' });
+    return res.status(error.statusCode || 500).json({ message: error.message || 'Server error' });
   }
 };
 
-/**
- * @desc    Delete a transaction (direct delete if permitted)
- * @route   DELETE /api/transactions/:id
- * @access  Private
- */
-exports.deleteTransaction = async (req, res) => {
+const deleteTransaction = async (req: Request<{ id: string }>, res: Response) => {
   try {
-    const userId = req.user && req.user.userId;
+    const userId = req.user?.userId;
     const transactionId = parseInt(req.params.id, 10);
 
-    await transactionService.deleteTransaction(userId, transactionId);
+    await TransactionService.deleteTransactionItem(transactionId, userId);
 
     return res.json({ message: 'Transaction deleted' });
-  } catch (error) {
+  } catch (error: any) {
     console.error('deleteTransaction error', error);
-    return res.status(error.status || 500).json({ message: error.message || 'Server error' });
+    return res.status(error.statusCode || 500).json({ message: error.message || 'Server error' });
   }
 };
 
-/**
- * @desc    Request edit for a transaction (creates a pending edit request)
- * @route   POST /api/transactions/:id/requests/edit
- * @access  Private
- *
- * Body: { proposedChanges: { ... } , reason?: string }
- */
-exports.requestEditTransaction = async (req, res) => {
+const requestEditTransaction = async (req: Request<{ id: string }>, res: Response) => {
   try {
-    const userId = req.user && req.user.userId;
+    const userId = req.user?.userId;
     const transactionId = parseInt(req.params.id, 10);
-    const { proposedChanges, reason } = req.body;
+    const { proposedChanges } = req.body;
 
-    const requestRecord = await transactionService.requestEditTransaction(userId, transactionId, {
-      proposedChanges,
-      reason
-    });
+    const requestRecord = await TransactionService.requestEditOtherTransaction(transactionId, userId, proposedChanges);
 
     return res.status(201).json({
       message: 'Edit request created',
-      data: requestRecord
+      data: requestRecord,
     });
-  } catch (error) {
+  } catch (error: any) {
     console.error('requestEditTransaction error', error);
-    return res.status(error.status || 500).json({ message: error.message || 'Server error' });
+    return res.status(error.statusCode || 500).json({ message: error.message || 'Server error' });
   }
 };
 
-/**
- * @desc    Request delete for a transaction (creates a pending delete request)
- * @route   POST /api/transactions/:id/requests/delete
- * @access  Private
- *
- * Body: { reason?: string }
- */
-exports.requestDeleteTransaction = async (req, res) => {
+const requestDeleteTransaction = async (req: Request<{ id: string }>, res: Response) => {
   try {
-    const userId = req.user && req.user.userId;
+    const userId = req.user?.userId;
     const transactionId = parseInt(req.params.id, 10);
-    const { reason } = req.body;
 
-    const requestRecord = await transactionService.requestDeleteTransaction(userId, transactionId, { reason });
+    const requestRecord = await TransactionService.requestDeleteOtherTransaction(transactionId, userId);
 
     return res.status(201).json({
       message: 'Delete request created',
-      data: requestRecord
+      data: requestRecord,
     });
-  } catch (error) {
+  } catch (error: any) {
     console.error('requestDeleteTransaction error', error);
-    return res.status(error.status || 500).json({ message: error.message || 'Server error' });
+    return res.status(error.statusCode || 500).json({ message: error.message || 'Server error' });
   }
 };
 
-/**
- * @desc    Confirm or reject a pending change (edit/delete)
- * @route   POST /api/transactions/requests/:requestId/confirm
- * @access  Private (should be authorized user who can confirm)
- *
- * Body: { action: 'approve' | 'reject', note?: string }
- */
-exports.confirmChange = async (req, res) => {
+const confirmChange = async (req: Request<{ requestId: string }>, res: Response) => {
   try {
-    const userId = req.user && req.user.userId;
+    const userId = req.user?.userId;
     const requestId = parseInt(req.params.requestId, 10);
-    const { action, note } = req.body; // action = 'approve' or 'reject'
+    const { action } = req.body; // 'approve' or 'reject'
 
-    const result = await transactionService.confirmChange(userId, requestId, { action, note });
+    const result = await TransactionService.confirmTransactionChange(requestId, userId, action);
 
     return res.json({
       message: `Request ${action}ed`,
-      data: result
+      data: result,
     });
-  } catch (error) {
+  } catch (error: any) {
     console.error('confirmChange error', error);
-    return res.status(error.status || 500).json({ message: error.message || 'Server error' });
+    return res.status(error.statusCode || 500).json({ message: error.message || 'Server error' });
   }
+};
+
+export const TransactionController = {
+  addTransaction,
+  editTransaction,
+  deleteTransaction,
+  requestEditTransaction,
+  requestDeleteTransaction,
+  confirmChange,
 };
