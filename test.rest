@@ -86,5 +86,5 @@ Content-Type: application/json
 Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6OCwiaWF0IjoxNzU1MzUyNjg0LCJleHAiOjE3NTUzNTYyODR9.MuQMJdSuzg7fvEk6hpGz1sEbqZyXoNDVrh1-OyTrH0Q
 
 {
-  "allow": true
+  "allow": false
 }
