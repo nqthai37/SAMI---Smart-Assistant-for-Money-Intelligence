@@ -1,3 +1,5 @@
+
+
 # Test Auth
 ###
 POST http://localhost:8383/api/auth/register
@@ -62,3 +64,40 @@ Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6OCwiaWF0IjoxN
 ### Lấy trang thứ hai của danh sách team
 GET http://localhost:8383/api/user/teams?page=2&limit=5
 Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6OCwiaWF0IjoxNzU1NDA1ODE2LCJleHAiOjE3NTU0MDk0MTZ9.ITn28ofpMhzxIawMHyMXwBQkSOg-MgwE--bDcAHg0eE
+
+#test Transaction 
+###
+### Thêm một giao dịch mới
+# Request này sẽ tự động sử dụng token mới nhất.
+# QUAN TRỌNG: Bạn phải thay đổi "teamId" thành ID của một team có thật
+# mà người dùng đã đăng nhập là thành viên.
+POST http://localhost:8383/api/transactions
+Content-Type: application/json
+Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6OCwiaWF0IjoxNzU1NDA3MDY1LCJleHAiOjE3NTU0MTA2NjV9.GDxW2umqhlzoQgS5Ds52v21yKU24edIGGUlackjIG4A
+
+{
+  "teamId": 6,
+  "amount": 150000,
+  "type": "expense",
+  "categoryName": "Ăn uống",
+  "categoryIcon": "🍔",
+  "description": "Ăn trưa cùng đồng nghiệp",
+  "transactionDate": "2025-08-17T12:30:00.000Z"
+}
+
+### 2. Sửa giao dịch vừa tạo
+# Request này sử dụng token và transactionId đã được lấy tự động
+PUT http://localhost:8383/api/transactions/19
+Content-Type: application/json
+Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6OCwiaWF0IjoxNzU1NDA3MDY1LCJleHAiOjE3NTU0MTA2NjV9.GDxW2umqhlzoQgS5Ds52v21yKU24edIGGUlackjIG4A
+
+
+{
+  "amount": 200000,
+  "description": "Đã cập nhật mô tả giao dịch"
+}
+
+### 3. Xóa giao dịch vừa tạo
+# Request này sử dụng token và transactionId đã được lấy tự động
+DELETE http://localhost:8383/api/transactions/18
+Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6OCwiaWF0IjoxNzU1NDA3MDY1LCJleHAiOjE3NTU0MTA2NjV9.GDxW2umqhlzoQgS5Ds52v21yKU24edIGGUlackjIG4A

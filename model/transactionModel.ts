@@ -3,9 +3,9 @@ import { prisma } from '../lib/prisma.js';
 import type { Prisma } from '@prisma/client';
 
 // Create a new transaction
-const create = async (transactionData: Prisma.TransactionCreateInput) => {
+const create = async (transactionData: Prisma.transactionsCreateInput) => {
   try {
-    return await prisma.transaction.create({
+    return await prisma.transactions.create({
       data: transactionData,
     });
   } catch (error) {
@@ -17,7 +17,7 @@ const create = async (transactionData: Prisma.TransactionCreateInput) => {
 // Find transaction by ID
 const findById = async (id: number) => {
   try {
-    return await prisma.transaction.findUnique({
+    return await prisma.transactions.findUnique({
       where: { id },
     });
   } catch (error) {
@@ -27,9 +27,9 @@ const findById = async (id: number) => {
 };
 
 // Update transaction
-const update = async (id: number, updates: Prisma.TransactionUpdateInput) => {
+const update = async (id: number, updates: Prisma.transactionsUpdateInput) => {
   try {
-    return await prisma.transaction.update({
+    return await prisma.transactions.update({
       where: { id },
       data: updates,
     });
@@ -42,7 +42,7 @@ const update = async (id: number, updates: Prisma.TransactionUpdateInput) => {
 // Delete transaction
 const remove = async (id: number) => {
   try {
-    return await prisma.transaction.delete({
+    return await prisma.transactions.delete({
       where: { id },
     });
   } catch (error) {
@@ -52,9 +52,9 @@ const remove = async (id: number) => {
 };
 
 // Create edit request
-const createEditRequest = async (data: Prisma.EditRequestCreateInput) => {
+const createChangeRequest = async (data: Prisma.changeRequestsCreateInput) => {
   try {
-    return await prisma.editRequest.create({
+    return await prisma.changeRequests.create({
       data,
     });
   } catch (error) {
@@ -64,9 +64,9 @@ const createEditRequest = async (data: Prisma.EditRequestCreateInput) => {
 };
 
 // Find edit request by ID
-const findEditRequestById = async (id: number) => {
+const findChangeRequestById = async (id: number) => {
   try {
-    return await prisma.editRequest.findUnique({
+    return await prisma.changeRequests.findUnique({
       where: { id },
     });
   } catch (error) {
@@ -76,12 +76,12 @@ const findEditRequestById = async (id: number) => {
 };
 
 // Update edit request status
-const updateEditRequestStatus = async (
+const updateChangeRequestStatus = async (
   id: number,
-  status: 'PENDING' | 'APPROVED' | 'REJECTED'
+  status: 'pending' | 'approved' | 'rejected'
 ) => {
   try {
-    return await prisma.editRequest.update({
+    return await prisma.changeRequests.update({
       where: { id },
       data: { status },
     });
@@ -96,7 +96,7 @@ export const TransactionModel = {
   findById,
   update,
   remove,
-  createEditRequest,
-  findEditRequestById,
-  updateEditRequestStatus,
+  createChangeRequest,
+  findChangeRequestById,
+  updateChangeRequestStatus,
 };

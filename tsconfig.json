@@ -2,7 +2,7 @@
   // Visit https://aka.ms/tsconfig to read more about this file
   "compilerOptions": {
     "module": "NodeNext",
-    "target": "esnext",
+    "target": "ES2022",
     "sourceMap": true,
     "declaration": true,
     "declarationMap": true,
@@ -32,8 +32,20 @@
     "esModuleInterop": true, // <--- BẬT HOẶC THÊM DÒNG NÀY     
     "moduleResolution": "NodeNext",
     "outDir": "./dist", // <-- Thêm dòng này: Thư mục chứa code .js
-    "rootDir": "./"    // <-- Thêm dòng này: Thư mục chứa code .ts gốc
+    "rootDir": "./",    // <-- Thêm dòng này: Thư mục chứa code .ts gốc
+    "forceConsistentCasingInFileNames": true
   },
-  "include": ["**/*.ts"],      
+  "include": [
+    "src/**/*.ts",
+    "server.ts",
+    "app.ts",
+    "routes/**/*.ts",
+    "controllers/**/*.ts",
+    "services/**/*.ts",
+    "middlewares/**/*.ts",
+    "model/**/*.ts",
+    "prisma/**/*.ts",
+    "types/**/*.ts" // <-- THÊM DÒNG NÀY (hoặc đảm bảo nó bao quát thư mục types)
+  ],      
   "exclude": ["node_modules"]
 }

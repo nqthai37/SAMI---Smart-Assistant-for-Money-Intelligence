@@ -1,13 +1,15 @@
 // controllers/transactionController.ts
 import type { Request, Response } from 'express';
 import * as TransactionService from '../services/transactionService.js';
-// import '../types/express';
-
-
 
 const addTransaction = async (req: Request, res: Response) => {
   try {
-    const userId = req.user?.userId;
+    // Lấy id người dùng từ token đã được xác thực
+    const userId = req.user?.id;
+    if (!userId) {
+      return res.status(401).json({ message: 'Unauthorized: User ID not found in token.' });
+    }
+
     const payload = req.body;
 
     const created = await TransactionService.addTransactionRecord(payload, userId);
@@ -22,10 +24,12 @@ const addTransaction = async (req: Request, res: Response) => {
   }
 };
 
-const editTransaction = async (  req: Request<{ id: string }>, 
-  res: Response) => {
+const editTransaction = async (req: Request, res: Response) => {
   try {
-    const userId = req.user?.userId;
+    const userId = req.user?.id; // SỬA LỖI: từ userId thành id
+    if (!userId) {
+      return res.status(401).json({ message: 'Unauthorized: User ID not found in token.' });
+    }
     const transactionId = parseInt(req.params.id, 10);
     const updates = req.body;
 
@@ -41,9 +45,12 @@ const editTransaction = async (  req: Request<{ id: string }>,
   }
 };
 
-const deleteTransaction = async (req: Request<{ id: string }>, res: Response) => {
+const deleteTransaction = async (req: Request, res: Response) => {
   try {
-    const userId = req.user?.userId;
+    const userId = req.user?.id; // SỬA LỖI: từ userId thành id
+    if (!userId) {
+      return res.status(401).json({ message: 'Unauthorized: User ID not found in token.' });
+    }
     const transactionId = parseInt(req.params.id, 10);
 
     await TransactionService.deleteTransactionItem(transactionId, userId);
@@ -55,9 +62,12 @@ const deleteTransaction = async (req: Request<{ id: string }>, res: Response) =>
   }
 };
 
-const requestEditTransaction = async (req: Request<{ id: string }>, res: Response) => {
+const requestEditTransaction = async (req: Request, res: Response) => {
   try {
-    const userId = req.user?.userId;
+    const userId = req.user?.id; // SỬA LỖI: từ userId thành id
+    if (!userId) {
+      return res.status(401).json({ message: 'Unauthorized: User ID not found in token.' });
+    }
     const transactionId = parseInt(req.params.id, 10);
     const { proposedChanges } = req.body;
 
@@ -73,9 +83,12 @@ const requestEditTransaction = async (req: Request<{ id: string }>, res: Respons
   }
 };
 
-const requestDeleteTransaction = async (req: Request<{ id: string }>, res: Response) => {
+const requestDeleteTransaction = async (req: Request, res: Response) => {
   try {
-    const userId = req.user?.userId;
+    const userId = req.user?.id; // SỬA LỖI: từ userId thành id
+    if (!userId) {
+      return res.status(401).json({ message: 'Unauthorized: User ID not found in token.' });
+    }
     const transactionId = parseInt(req.params.id, 10);
 
     const requestRecord = await TransactionService.requestDeleteOtherTransaction(transactionId, userId);
@@ -90,9 +103,12 @@ const requestDeleteTransaction = async (req: Request<{ id: string }>, res: Respo
   }
 };
 
-const confirmChange = async (req: Request<{ requestId: string }>, res: Response) => {
+const confirmChange = async (req: Request, res: Response) => {
   try {
-    const userId = req.user?.userId;
+    const userId = req.user?.id; // SỬA LỖI: từ userId thành id
+    if (!userId) {
+      return res.status(401).json({ message: 'Unauthorized: User ID not found in token.' });
+    }
     const requestId = parseInt(req.params.requestId, 10);
     const { action } = req.body; // 'approve' or 'reject'
 

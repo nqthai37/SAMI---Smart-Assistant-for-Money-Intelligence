@@ -5,6 +5,7 @@
     import authRoutes from './routes/authRoutes.js';
     import teamRoutes from './routes/teamRoutes.js';
     import userRoutes from './routes/userRoute.js';
+    import transactionRoutes from './routes/transactionRoutes.js';
 
     const app: Express = express();
     const PORT: number = 8383;
@@ -18,5 +19,6 @@
 
     app.use('/api/user', userRoutes);
 
+    app.use('/api/transactions', transactionRoutes);
     app.listen(PORT, () => console.log(`Server has started on: ${PORT}`));
 

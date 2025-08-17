@@ -1,12 +1,7 @@
 import type { Request, Response, NextFunction } from 'express';
 import jwt from 'jsonwebtoken';
 
-// Mở rộng interface Request của Express để có thể chứa thuộc tính user
-export interface AuthRequest extends Request {
-    user?: { id: string | number }; // Hoặc định nghĩa rõ hơn type của user
-}
-
-export const authMiddleware = (req: AuthRequest, res: Response, next: NextFunction) => {
+export const authMiddleware = (req: Request, res: Response, next: NextFunction) => {
     // Lấy token từ header 'Authorization'
     const authHeader = req.headers.authorization;
 
@@ -26,10 +21,10 @@ export const authMiddleware = (req: AuthRequest, res: Response, next: NextFuncti
 
     try {
         // 2. Xác thực token
-        const decoded = jwt.verify(token, jwtSecret as string);
+        const decoded = jwt.verify(token, jwtSecret as string) as { id: number };
 
         // 3. Gán thông tin người dùng đã giải mã vào request
-        req.user = decoded as { id: string | number };
+        req.user = { id: decoded.id };
 
         // 4. Chuyển sang middleware hoặc controller tiếp theo
         next();

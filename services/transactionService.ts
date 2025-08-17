@@ -1,7 +1,7 @@
 // File: services/transaction.service.ts
-import { TransactionModel } from '../models/transaction.model.js';
-import { TeamModel } from '../models/teamModel.js';
-import { MemberModel } from '../models/memberModel.js';
+import { TransactionModel } from '../model/transactionModel.js';
+import { TeamModel } from '../model/teamModel.js';
+// Bỏ import MemberModel vì đã tích hợp vào TeamModel
 import type { Prisma } from '@prisma/client';
 
 interface AddTransactionData {
@@ -31,30 +31,38 @@ export const addTransactionRecord = async (
     throw error;
   }
 
-  const member = await MemberModel.findByTeamAndUser(transactionData.teamId, userId);
+  // Check if user is a member of the team using the updated TeamModel
+  const member = await TeamModel.findMember(transactionData.teamId, userId);
   if (!member) {
     const error = new Error('Bạn không thuộc team này.');
     (error as any).statusCode = 403;
     throw error;
   }
 
-  return await TransactionModel.create({
-    teamId: transactionData.teamId,
-    userId,
+  // Dữ liệu để tạo transaction mới, kết nối với team và user
+  const newTransactionData: Prisma.transactionsCreateInput = {
     amount: transactionData.amount,
-    type: transactionData.type,
+    type: transactionData.type as 'income' | 'expense', // Đảm bảo type hợp lệ
     categoryName: transactionData.categoryName,
     categoryIcon: transactionData.categoryIcon,
     description: transactionData.description,
     transactionDate: transactionData.transactionDate,
-    createdAt: new Date(),
-    updatedAt: new Date(),
-  });
+    // Kết nối với các bảng liên quan bằng ID
+    teams: {
+      connect: { id: transactionData.teamId },
+    },
+    User: {
+      connect: { id: userId },
+    },
+  };
+
+  return await TransactionModel.create(newTransactionData);
 };
 
 // Permission checks
 export const hasPermissionToChangeOtherTransaction = async (teamId: number, userId: number) => {
-  const member = await MemberModel.findByTeamAndUser(teamId, userId);
+  // SỬA LỖI: Sử dụng TeamModel thay vì MemberModel đã bị xóa
+  const member = await TeamModel.findMember(teamId, userId);
   return member && (member.role === 'OWNER' || member.role === 'ADMIN');
 };
 
@@ -121,12 +129,13 @@ export const requestEditOtherTransaction = async (
     throw error;
   }
 
-  return await TransactionModel.createEditRequest({
-    transactionId,
+  // SỬA LẠI CÁCH TẠO YÊU CẦU CHỈNH SỬA
+  return await TransactionModel.createChangeRequest({
+    targetTransactionId: transactionId, // Sửa: transactionId -> targetTransactionId
     requesterId: userId,
-    updates: JSON.stringify(updates),
-    createdAt: new Date(),
+    type: 'EDIT',
     status: 'PENDING',
+    reason: JSON.stringify(updates), // Sửa: updates -> reason
   });
 };
 
@@ -144,11 +153,13 @@ export const requestDeleteOtherTransaction = async (transactionId: number, userI
     throw error;
   }
 
-  return await TransactionModel.createDeleteRequest({
-    transactionId,
+  // SỬA LẠI CÁCH TẠO YÊU CẦU XÓA
+  return await TransactionModel.createChangeRequest({
+    targetTransactionId: transactionId, // Sửa: transactionId -> targetTransactionId
     requesterId: userId,
-    createdAt: new Date(),
+    type: 'DELETE',
     status: 'PENDING',
+    reason: 'Yêu cầu xóa giao dịch', // Cung cấp lý do
   });
 };
 
@@ -158,14 +169,15 @@ export const confirmTransactionChange = async (
   approverId: number,
   action: 'approve' | 'reject'
 ) => {
-  const request = await TransactionModel.findEditRequestById(requestId);
+  const request = await TransactionModel.findChangeRequestById(requestId);
   if (!request) {
     const error = new Error('Yêu cầu không tồn tại.');
     (error as any).statusCode = 404;
     throw error;
   }
 
-  const transaction = await TransactionModel.findById(request.transactionId);
+  // SỬA LỖI: Sử dụng đúng tên trường từ schema
+  const transaction = await TransactionModel.findById(request.targetTransactionId);
   if (!transaction) {
     const error = new Error('Giao dịch không tồn tại.');
     (error as any).statusCode = 404;
@@ -178,13 +190,17 @@ export const confirmTransactionChange = async (
   }
 
   if (action === 'approve') {
-    await TransactionModel.update(transaction.id, {
-      ...JSON.parse(request.updates),
-      updatedAt: new Date(),
-    });
-    await TransactionModel.updateEditRequestStatus(requestId, 'APPROVED');
+    if (request.type === 'DELETE') {
+      await TransactionModel.remove(transaction.id);
+    } else {
+      await TransactionModel.update(transaction.id, {
+        ...JSON.parse(request.reason as string),
+        updatedAt: new Date(),
+      });
+    }
+    await TransactionModel.updateChangeRequestStatus(requestId, 'APPROVED');
   } else {
-    await TransactionModel.updateEditRequestStatus(requestId, 'REJECTED');
+    await TransactionModel.updateChangeRequestStatus(requestId, 'REJECTED');
   }
 
   return true;
