@@ -34,7 +34,7 @@ Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6MTIsImlhdCI6M
 ###
 PATCH http://localhost:8383/api/user/updateprofile
 Content-Type: application/json
-Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6MTIsImlhdCI6MTc1NTQwNTE1NiwiZXhwIjoxNzU1NDA4NzU2fQ.3qT87Hr2uik0VRLo3Bks76J8e87sdiMko8BOobCt4SA
+Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6MTEsImlhdCI6MTc1NTQwMzk1NCwiZXhwIjoxNzU1NDA3NTU0fQ.XnE3HGDSvWndhuU1jPFOLAqYa5fyYa-KquVELUgKi0s
 
 {
   "firstName": "NewFirstName",
