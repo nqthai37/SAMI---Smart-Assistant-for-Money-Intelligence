@@ -1,11 +1,10 @@
 import type { Request, Response } from 'express';
 import * as userService from '../services/userService.js';
 
-// Định nghĩa kiểu Request mở rộng để có `user`
+// Định nghĩa kiểu Request mở rộng để có user
 interface AuthenticatedRequest extends Request {
   user?: {
-    userId?: number;
-    id?: number; // Một số chỗ bạn dùng req.user.id thay vì userId
+    id?: number; // Chuẩn hóa sử dụng 'id'
   };
 }
 
@@ -16,7 +15,7 @@ interface AuthenticatedRequest extends Request {
  */
 export const getMyProfile = async (req: AuthenticatedRequest, res: Response): Promise<Response> => {
   try {
-    const userId = req.user?.userId;
+    const userId = req.user?.id; // Sửa thành req.user.id
     if (!userId) {
       return res.status(401).json({ message: 'Unauthorized' });
     }
@@ -37,7 +36,7 @@ export const getMyProfile = async (req: AuthenticatedRequest, res: Response): Pr
  */
 export const updateMyProfile = async (req: AuthenticatedRequest, res: Response): Promise<Response> => {
   try {
-    const userId = req.user?.userId;
+    const userId = req.user?.id; // Sửa thành req.user.id
     if (!userId) {
       return res.status(401).json({ message: 'Unauthorized' });
     }
@@ -55,27 +54,16 @@ export const updateMyProfile = async (req: AuthenticatedRequest, res: Response):
  * @route POST /api/user/change-password
  * @access Private
  */
-// export const changePassword = async (req: AuthenticatedRequest, res: Response): Promise<Response> => {
-//   try {
-//     const userID = req.user?.id;
-//     if (!userID) {
-//       return res.status(401).json({ message: 'Unauthorized' });
-//     }
-
-//     const { oldPassword, newPassword }: { oldPassword: string; newPassword: string } = req.body;
-//     await userService.changePassword(userID, oldPassword, newPassword);
-
-//     return res.json({ message: 'Password changed successfully' });
-//   } catch (error: any) {
-//     console.error('Error changing password:', error);
-//     return res.status(400).json({ message: error.message });
-//   }
-// };
-
 export const changePassword = async (req: AuthenticatedRequest, res: Response): Promise<Response> => {
   try {
-    const { userID, oldPassword, newPassword } = req.body;
+    const userID = req.user?.id; // LẤY ID TỪ TOKEN ĐÃ XÁC THỰC
+    if (!userID) {
+      return res.status(401).json({ message: 'Unauthorized' });
+    }
+
+    const { oldPassword, newPassword }: { oldPassword: string; newPassword: string } = req.body;
     await userService.changePassword(userID, oldPassword, newPassword);
+
     return res.json({ message: 'Password changed successfully' });
   } catch (error: any) {
     console.error('Error changing password:', error);
@@ -91,7 +79,7 @@ export const changePassword = async (req: AuthenticatedRequest, res: Response): 
  */
 export const showTeamList = async (req: AuthenticatedRequest, res: Response): Promise<Response> => {
   try {
-    const userId = req.user?.userId;
+    const userId = req.user?.id; // Sửa thành req.user.id
     const { page, limit } = req.query;
 
     const options: { page?: number; limit?: number } = {}
@@ -130,7 +118,7 @@ export const searchTeam = async (req: Request, res: Response): Promise<Response>
  */
 export const getNotification = async (req: AuthenticatedRequest, res: Response): Promise<Response> => {
   try {
-    const userId = req.user?.userId;
+    const userId = req.user?.id; // Sửa thành req.user.id
     const { page, limit, unreadOnly } = req.query;
 
     const options: { page?: number; limit?: number; unreadOnly?: boolean } = {
@@ -148,5 +136,3 @@ export const getNotification = async (req: AuthenticatedRequest, res: Response):
     return res.status(500).json({ message: 'Server error' });
   }
 };
-
-

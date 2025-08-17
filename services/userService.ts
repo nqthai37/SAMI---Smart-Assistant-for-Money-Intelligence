@@ -18,13 +18,12 @@ export const getUserProfile = async (userId: number) => {
   const user = await UserModel.findByUserID(userId);
   if (!user) return null;
 
-  // Return a copy of the user object without the password
-  const { password, ...userProfile } = user;
+  // Return a copy of the user object without the passwordHash
+  const { passwordHash, ...userProfile } = user;
   return userProfile;
 };
 
-// Update profile
-// ...existing code...
+
 // Update profile
 export const updateUserProfile = async (
   userId: number,

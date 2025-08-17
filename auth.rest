@@ -4,7 +4,7 @@ POST http://localhost:8383/api/auth/register
 Content-Type: application/json
 
 {
-  "email": "pdinh2612@gmail.com",
+  "email": "test2612@gmail.com",
   "password": "password",
   "firstName": "Dinh",
   "lastName": "Tran"
@@ -15,29 +15,31 @@ POST http://localhost:8383/api/auth/login
 Content-Type: application/json
 
 {
-  "email": "pdinh2612@gmail.com",
-  "password": "123546"
+  "email": "test2612@gmail.com",
+  "password": "password"
 }
 
 # Test User
 ###
 POST http://localhost:8383/api/user/change-password
 Content-Type: application/json
+Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6MTIsImlhdCI6MTc1NTQwNDQzMywiZXhwIjoxNzU1NDA4MDMzfQ.h1xl5h10ABMzkA2NuhL9fMclit1H5WaaHvpASNkTofg
 
 {
   "userID": 11,
-  "oldPassword": "123546",
+  "oldPassword": "123456",
   "newPassword": "123456"
 }
 
 ###
 PATCH http://localhost:8383/api/user/updateprofile
 Content-Type: application/json
-Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6MTEsImlhdCI6MTc1NTQwMzQyNSwiZXhwIjoxNzU1NDA3MDI1fQ.yA8kCq75r4SIMwcei4pDzyZDf26sR5Ns-qcEZw16Ceg
+Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6MTIsImlhdCI6MTc1NTQwNTE1NiwiZXhwIjoxNzU1NDA4NzU2fQ.3qT87Hr2uik0VRLo3Bks76J8e87sdiMko8BOobCt4SA
 
 {
   "firstName": "NewFirstName",
   "lastName": "NewLastName",
   "dateOfBirth": "1999-01-01",
-  "gender": "Male"
+  "gender": "Female"
 }
+
