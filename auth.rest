@@ -43,3 +43,22 @@ Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6MTEsImlhdCI6M
   "gender": "Female"
 }
 
+###
+POST http://localhost:8383/api/auth/login
+Content-Type: application/json
+
+{
+  "email": "pdinh@gmail.com",
+  "password": "testpassword"
+}
+
+### Lấy danh sách team của người dùng (có phân trang)
+# Request này sẽ tự động sử dụng token mới nhất.
+# Bạn có thể thay đổi giá trị `page` và `limit` để kiểm tra phân trang.
+GET http://localhost:8383/api/user/teams?page=1&limit=5
+Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6OCwiaWF0IjoxNzU1NDA1ODE2LCJleHAiOjE3NTU0MDk0MTZ9.ITn28ofpMhzxIawMHyMXwBQkSOg-MgwE--bDcAHg0eE
+
+###
+### Lấy trang thứ hai của danh sách team
+GET http://localhost:8383/api/user/teams?page=2&limit=5
+Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6OCwiaWF0IjoxNzU1NDA1ODE2LCJleHAiOjE3NTU0MDk0MTZ9.ITn28ofpMhzxIawMHyMXwBQkSOg-MgwE--bDcAHg0eE

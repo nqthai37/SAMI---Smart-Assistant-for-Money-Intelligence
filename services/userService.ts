@@ -1,4 +1,3 @@
-
 import { Prisma } from '@prisma/client';
 import { prisma } from '../lib/prisma.js';
 import { UserModel } from '../model/UserModel.js';
@@ -60,19 +59,62 @@ export const updateUserProfile = async (
 
 // Show team list with pagination
 export const showTeamList = async (
-  userId?: number,
-  options?: { page?: number; limit?: number }
+  userId: number,
+  options: { page?: number; limit?: number } = {}
 ) => {
-  const user = users.find(u => u.id === userId);
-  if (!user) return null;
+  const { page = 1, limit = 10 } = options;
+  const skip = (page - 1) * limit;
 
-  let teams = [...user.teams];
-  if (options?.page && options?.limit) {
-    const start = (options.page - 1) * options.limit;
-    teams = teams.slice(start, start + options.limit);
-  }
+  // Tìm tất cả các team mà người dùng là chủ sở hữu HOẶC là thành viên
+  const teams = await prisma.teams.findMany({
+    where: {
+      OR: [
+        {
+          ownerId: userId, // Người dùng là chủ sở hữu
+        },
+        {
+          teamMembers: {
+            some: {
+              userId: userId, // Người dùng là thành viên trong team
+            },
+          },
+        },
+      ],
+    },
+    skip: skip,
+    take: limit,
+    orderBy: {
+      createdAt: 'desc', // Sắp xếp theo team mới nhất
+    },
+  });
 
-  return teams;
+  // Lấy tổng số team để tính toán phân trang ở phía client
+  const totalTeams = await prisma.teams.count({
+    where: {
+      OR: [
+        {
+          ownerId: userId,
+        },
+        {
+          teamMembers: {
+            some: {
+              userId: userId,
+            },
+          },
+        },
+      ],
+    },
+  });
+
+  return {
+    data: teams,
+    pagination: {
+      page,
+      limit,
+      totalItems: totalTeams,
+      totalPages: Math.ceil(totalTeams / limit),
+    },
+  };
 };
 
 // Get notifications with pagination + unread filter
