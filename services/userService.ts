@@ -1,7 +1,10 @@
+
 import { Prisma } from '@prisma/client';
 import { prisma } from '../lib/prisma.js';
 import { UserModel } from '../model/UserModel.js';
 import bcrypt from 'bcryptjs';
+
+
 // src/services/userService.ts
 interface PaginationOptions {
   page?: number | undefined;

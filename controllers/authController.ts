@@ -2,6 +2,7 @@
 
 import type { Request, Response } from 'express';
 import { AuthService } from '../services/authService.js';
+import jwt from 'jsonwebtoken';
 
 const register = async (req: Request, res: Response) => {
     try {
@@ -35,9 +36,20 @@ const login = async (req: Request, res: Response) => {
         // Call login service
         const user = await AuthService.login(email, password);
 
+        const jwtSecret = process.env.JWT_SECRET;
+        if (!jwtSecret) {
+            throw new Error("JWT_SECRET chưa được thiết lập");
+        }
+
+        const token = jwt.sign(
+            { id: user.id },   // payload
+            jwtSecret,         // secret key
+            { expiresIn: '1h' } // tùy chỉnh thời gian sống
+        );
         // If login is successful, return user data
         return res.status(200).json({
             message: "Đăng nhập thành công!",
+            token,
             user,
         });
 
