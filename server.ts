@@ -3,12 +3,8 @@
     import express from 'express';
     import type { Express } from 'express';
     import authRoutes from './routes/authRoutes.js';
-<<<<<<< HEAD
-    import userRoutes from './routes/userRoute.js';
-    // import teamRoutes from './routes/team.routes';
-=======
     import teamRoutes from './routes/teamRoutes.js';
->>>>>>> origin/main
+    import userRoutes from './routes/userRoute.js';
 
     const app: Express = express();
     const PORT: number = 8383;

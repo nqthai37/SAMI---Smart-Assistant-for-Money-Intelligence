@@ -33,7 +33,7 @@ Content-Type: application/json
 ###
 PATCH http://localhost:8383/api/user/updateprofile
 Content-Type: application/json
-Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6OCwiaWF0IjoxNzU1NDAwODMzLCJleHAiOjE3NTU0MDQ0MzN9.sQJMqOsyjQSLsPXUNyhJQSXb2o-lmBu-y759qbMllMo
+Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6MTEsImlhdCI6MTc1NTQwMzQyNSwiZXhwIjoxNzU1NDA3MDI1fQ.yA8kCq75r4SIMwcei4pDzyZDf26sR5Ns-qcEZw16Ceg
 
 {
   "firstName": "NewFirstName",
