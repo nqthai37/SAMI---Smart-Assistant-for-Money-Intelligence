@@ -137,7 +137,7 @@ const sendInviteEmail: RequestHandler = async (req, res) => {
     const { email } = req.body;
 
     // Gửi email mời tham gia team
-    await TeamService.sendInviteEmail(teamId, email);
+    await TeamService.sendInviteEmail(teamId, email, (req as AuthenticatedRequest).user.id);
 
     return res.status(200).json({ message: 'Email mời đã được gửi thành công' });
   } catch (error) {

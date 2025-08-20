@@ -1,6 +1,7 @@
 // services/teamService.ts
 import { TeamModel } from '../model/teamModel.js';
-import { UserModel } from '../model/UserModel.js'; // Giả sử bạn có một UserModel để tìm người dùng theo email
+import { tokenToUserId } from '../middlewares/authMiddlewares.js';
+import { UserModel } from '../model/userModel.js'; // Giả sử bạn có một UserModel để tìm người dùng theo email
 import EmailService from './emailService.js'; // Giả sử bạn có một EmailService để gửi email
 // ===== Validators (đặt ngay trong file cho đỡ thiếu import) =====
 const bad = (msg: string, code = 400) => {
@@ -17,7 +18,7 @@ const assertNonNegative = (v: number, name: string) => {
 };
 
 
-const ALLOWED_CURRENCIES = ['VND', 'USD', 'EUR', 'JPY'];
+const ALLOWED_CURRENCIES = ['VND', 'USD', 'EUR', 'JPY '];
 const assertCurrency = (c: any) => {
   const upperC = String(c).toUpperCase();
   if (!ALLOWED_CURRENCIES.includes(upperC)) {
@@ -134,71 +135,38 @@ const permitReportAccess = async (teamId: number, userId: number, allow: boolean
   return TeamModel.updateReportPermission(teamId, allow);
 };
 
-const sendInviteEmail=async (teamId: number, email: string) => {
-    // 1) Validate
-    if (!email) {
-      const error = new Error('Email không tồn tại');
-      (error as any).statusCode = 400;
-      throw error;
-    }
+const sendInviteEmail=async (teamId: number, email: string, inviterID: number) => {
+  if (!teamId || !email || !inviterID) bad('Thiếu teamId, email hoặc inviterID', 400);
 
-    // 2) Tìm người dùng theo email
-    let user;
-    try {
-      user = await UserModel.findByEmail(email);
-      
-      if (!user) {
-        // Security: Don't reveal if email exists or not
-        return { 
-          success: true, 
-          message: 'Nếu email tồn tại, nugời dùng sẽ nhận được email mời.',
-        };
-      }
-    } catch (findUserError) {
-      console.error('❌ Error finding user:', findUserError);
-      throw new Error('Lỗi khi tìm người dùng.');
-    }
+  // 1) Validate email
+  // if (!isValidEmail(email)) {
+  //   bad('Email không hợp lệ', 400);
+  // }
 
-    // 3) 🔐 Create reset token
-    try {
-      // Check if we're in development mode without database connection
-      const isDevelopmentMode = process.env.NODE_ENV !== 'production' && process.env.SEND_REAL_EMAILS?.toLowerCase().trim() !== 'true';
-      
-      let inviteToken: string;
-      
-      if (isDevelopmentMode) {
-        // Development mode: Generate simple token without database
-        inviteToken = Math.random().toString(36).substring(2, 15) + 
-                    Math.random().toString(36).substring(2, 15) + 
-                    Date.now().toString(36);
-                    
-        // console.log(� [DEV] Password reset for ${email}, token: ${inviteToken});
-        // console.log(🔗 [DEV] Reset link: ${process.env.FRONTEND_URL}/reset-password?token=${inviteToken});
-        
-        // Store token temporarily in memory for demo (not production ready)
-        if (!(global as any).tempInviteTokens) {
-          (global as any).tempInviteTokens = new Map();
-        }
-        (global as any).tempInviteTokens.set(inviteToken, {
-          userId: user.id,
-          email: email,
-          expiresAt: new Date(Date.now() + 60 * 60 * 1000), // 1 hour
-          used: false
-        });
-        
-        return { 
-          success: true, 
-          message: 'Email mời tham gia nhóm đã được gửi.',
-          inviteToken, // In dev mode, return token for testing
-          inviteLink: '${process.env.FRONTEND_URL}/send-invite?token=${inviteToken}'
-        };
-        
-      }
-    } catch (dbError) {
-      console.error('Database error during password reset:', dbError);
-      throw new Error('Không thể tạo token.');
-    }
+  // 2) Tìm team theo teamId
+
+  //find Inviter ID
+  const inviter = await UserModel.findById(inviterID);
+  if (!inviter) {
+    bad('Người mời không tồn tại', 404);
+    return;
   }
+  
+  const team = await TeamModel.findById(teamId);
+  if (!team) {
+    bad('Team không tồn tại', 404);
+    return;
+  }
+
+  // 3) Gửi email mời
+  const inviterName = inviter.firstName || inviter.email || 'Người mời';
+  const emailResult = await EmailService.sendTeamInvitation(teamId, email, team.teamName, inviterName);
+  if (!emailResult.success) {
+    bad('Không thể gửi email mời', 500);
+  }
+
+  return { success: true, message: 'Email mời đã được gửi.' };
+}
 
 // Gom export như code base của bạn
 export const TeamService = {

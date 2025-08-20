@@ -5,8 +5,8 @@
     import type { Express } from 'express';
 
     // SỬA ĐỔI: Thêm đuôi .js vào cuối đường dẫn import
-    import authRoutes from './routes/authRoutes.js';
-    import teamRoutes from './routes/teamRoutes.js';
+        import authRoutes from './routes/authRoutes.js';
+        import teamRoutes from './routes/teamRoutes.js';
 
     const app: Express = express();
     const PORT: number = 8383;

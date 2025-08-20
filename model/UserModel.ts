@@ -16,6 +16,17 @@ const findByEmail = async (email: string) => {
   }
 };
 
+const findById = async (id:  number) => {
+  try {
+    return await prisma.user.findUnique({
+      where: { id },
+    });
+  } catch (error) {
+    console.error('Lỗi Model: không thể tìm người dùng bằng ID.', error);
+    throw new Error('Lỗi tương tác với cơ sở dữ liệu.');
+  }
+};
+
 // Tạo người dùng mới
 const create = async (userData: Prisma.UserCreateInput) => {
   try {
@@ -28,4 +39,6 @@ const create = async (userData: Prisma.UserCreateInput) => {
   }
 };
 
-export const UserModel = { findByEmail, create };
+
+
+export const UserModel = { findByEmail, create, findById };
