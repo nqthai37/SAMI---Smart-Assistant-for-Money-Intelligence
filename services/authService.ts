@@ -1,5 +1,5 @@
 // File: services/auth.service.ts
-import { UserModel } from '../model/UserModel.js';
+import { UserModel } from '../model/userModel.js';
 import bcrypt from 'bcryptjs';
 
 

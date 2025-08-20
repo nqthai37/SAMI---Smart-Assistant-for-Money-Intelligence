@@ -1,7 +1,7 @@
 // model/teamModel.ts
 import { PrismaClient, Prisma } from '@prisma/client';
 import type { teams as Team } from '@prisma/client';
-import { UserModel } from './UserModel.js'; // Giả sử bạn có một UserModel để tìm người dùng theo email
+import { UserModel } from './userModel.js'; // Giả sử bạn có một UserModel để tìm người dùng theo email
 import  EmailService from '../services/emailService.js'; // Giả sử bạn có một EmailService để gửi email
 const prisma = new PrismaClient();
 
@@ -117,5 +117,9 @@ export const TeamModel = {
       where: { teamId, userId, role: { in: roles as any } },
     }),
 
-   
+  findById: async (teamId: number) =>
+    prisma.teams.findUnique({
+      where: { id: teamId },
+    }),
+
 };

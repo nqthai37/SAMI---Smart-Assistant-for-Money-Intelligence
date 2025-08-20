@@ -1,0 +1,52 @@
+###
+POST http://localhost:8383/auth/logout
+Content-Type: application/json
+
+{}
+###
+POST http://localhost:8383/auth/register
+Content-Type: application/json
+
+{
+  "email": "pakhoi23@clc.fitus.edu.vn",
+  "password": "teasdassword",
+  "firstName": "Khsdsadaoi",
+  "lastName": "Phiasdasd"
+}
+
+###
+POST http://localhost:8383/auth/forgot-password
+Content-Type: application/json
+
+{
+  "email": "thai37205@gmail.com"
+}
+
+###
+POST http://localhost:8383/auth/reset-password
+Content-Type: application/json
+
+{
+  "token": "YOUR_TOKEN_HERE",
+  "newPassword": "mynewpassword123"
+}
+
+
+###
+POST http://localhost:8383/api/auth/login
+Content-Type: application/json
+
+
+{
+  "email": "pdinh@gmail.com",
+  "password": "testpassword"
+}
+
+###
+POST http://localhost:8383/api/teams/1/send-invite
+Content-Type: application/json
+Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6OCwiaWF0IjoxNzU1NjcyODE3LCJleHAiOjE3NTU2NzY0MTd9.BDHX1GdrB4YLgoUDIhqpTAGYtAUU7H9_ySMgnBP5hu0
+
+{
+  "email": "thai37205@gmail.com"
+}

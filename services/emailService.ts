@@ -95,11 +95,12 @@ class EmailService {
   }
 
   public async sendTeamInvitation(
-    userEmail: string, 
-    teamName: string, 
+    teamId: number,
+    userEmail: string,
+    teamName: string,
     inviterName: string
   ): Promise<EmailResult> {
-    const htmlContent = this.generateTeamInvitationTemplate({ teamName, inviterName });
+    const htmlContent = this.generateTeamInvitationTemplate({ teamId, userEmail, teamName, inviterName });
 
     return await this.sendEmail({
       to: userEmail,
