@@ -1,8 +1,8 @@
 // services/teamService.ts
 import { TeamModel } from '../model/teamModel.js';
-import { tokenToUserId } from '../middlewares/authMiddlewares.js';
-import { UserModel } from '../model/userModel.js'; // Giả sử bạn có một UserModel để tìm người dùng theo email
+import { UserModel } from '../model/UserModel.js'; // Giả sử bạn có một UserModel để tìm người dùng theo email
 import EmailService from './emailService.js'; // Giả sử bạn có một EmailService để gửi email
+import { v4 as uuidv4 } from 'uuid';
 // ===== Validators (đặt ngay trong file cho đỡ thiếu import) =====
 const bad = (msg: string, code = 400) => {
   const e: any = new Error(msg);
@@ -135,27 +135,58 @@ const permitReportAccess = async (teamId: number, userId: number, allow: boolean
   return TeamModel.updateReportPermission(teamId, allow);
 };
 
+const checkValidInvite = async (teamId: number, email: string, inviterID: number) => {
+  //Kiểm tra email hợp lệ
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+    bad('Email không hợp lệ.', 400);
+    return false;
+  }
+  // Kiểm tra xem người dùng đã tồn tại trong team chưa
+  const existingMember = await TeamModel.findMemberByEmail(teamId, email);
+  if (existingMember) {
+    bad('Người dùng đã là thành viên của team.', 409);
+    return false;
+  }
+  //Kiểm tra đã có lời mời chưa
+  const existingInvite = await TeamModel.findInviteByEmail(teamId, email);
+  if (existingInvite) {
+    // Nếu đã có lời mời, kiểm tra thời hạn
+    const now = new Date();
+    if (existingInvite.expiresAt > now) {
+      bad('Lời mời đã được gửi trước đó và vẫn còn hiệu lực.', 409);
+      return false;
+    }
+  }
+  return true;
+}
+
 const sendInviteEmail=async (teamId: number, email: string, inviterID: number) => {
   if (!teamId || !email || !inviterID) bad('Thiếu teamId, email hoặc inviterID', 400);
 
-  // 1) Validate email
-  // if (!isValidEmail(email)) {
-  //   bad('Email không hợp lệ', 400);
-  // }
-
-  // 2) Tìm team theo teamId
-
-  //find Inviter ID
-  const inviter = await UserModel.findById(inviterID);
-  if (!inviter) {
-    bad('Người mời không tồn tại', 404);
-    return;
-  }
-  
   const team = await TeamModel.findById(teamId);
-  if (!team) {
-    bad('Team không tồn tại', 404);
-    return;
+    if (!team) throw new Error('Team không tồn tại');
+
+    const inviter = await UserModel.findById(inviterID);
+    if (!inviter) throw new Error('Người mời không tồn tại');
+  // 1) Kiểm tra tính hợp lệ của lời mời
+  const isValid = await checkValidInvite(teamId, email, inviterID);
+  if (!isValid) {
+    return { success: false, message: 'Lời mời không hợp lệ hoặc đã được gửi trước đó.' };
+  }
+
+  // 2) Tạo token mời (nếu cần, có thể dùng JWT hoặc một token đơn giản)
+  const inviteToken = uuidv4();
+  const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000); // Hết hạn sau 7 ngày
+
+  const invitation = await TeamModel.saveInvitation({
+    inviteToken,
+    teamId,
+    inviterID,
+    email,
+    expiresAt,
+  });
+  if (!invitation) {
+    bad('Không thể lưu lời mời.', 500);
   }
 
   // 3) Gửi email mời
@@ -166,6 +197,100 @@ const sendInviteEmail=async (teamId: number, email: string, inviterID: number) =
   }
 
   return { success: true, message: 'Email mời đã được gửi.' };
+}
+
+const handleInviteResponse = async (inviteToken: string, response: 'accept' | 'reject', email: string) => {
+  if (!inviteToken || !response || !email) {
+    bad('Thiếu inviteToken, response hoặc email', 400);
+  }
+  // 1) Tìm lời mời theo token
+  const invitation = await TeamModel.findInviteByToken(inviteToken, email);
+  if (!invitation) {
+    bad('Lời mời không tồn tại hoặc đã hết hạn', 404);
+  }
+  // 2) Cập nhật trạng thái lời mời
+  if (response === 'accept') {
+    // Thêm người dùng vào team
+    const user = await UserModel.findByEmail(email);
+    if (!user) {
+      bad('Người dùng không tồn tại', 404);
+    }
+    await TeamModel.addMember(invitation.teamId, user.id, 'member'); // Giả sử role là 'member'
+    // Cập nhật trạng thái lời mời
+    await TeamModel.updateInvitationStatus(invitation.id, 'accepted');
+    return { success: true, message: 'Bạn đã chấp nhận lời mời tham gia team.' };
+  }
+  else if (response === 'reject') {
+    // Cập nhật trạng thái lời mời là rejected
+    await TeamModel.updateInvitationStatus(invitation.id, 'rejected');
+    return { success: true, message: 'Bạn đã từ chối lời mời tham gia team.' };
+  } else {
+    bad('Response không hợp lệ. Chỉ chấp nhận "accept" hoặc "reject".', 400);
+  }
+  return { success: false, message: 'Không thể xử lý lời mời.' };
+}
+
+const calculateBalance = async (teamId: number) => {
+  const transactions = await TeamModel.getTransactions(teamId);
+  if (!transactions || transactions.length === 0) {
+    return {
+      totalIncome: 0,
+      totalExpenses: 0,
+      balance: 0
+    };
+  }
+  
+  // const balance = transactions.reduce((total, tx) => {
+  //   // Convert amounts to numbers explicitly
+  //   const currentAmount = Number(tx.amount || 0);
+  //   const currentTotal = Number(total);
+
+  //   if (tx.type === 'income') {
+  //     return currentTotal + currentAmount;
+  //   } else if (tx.type === 'expense') {
+  //     return currentTotal - currentAmount;
+  //   }
+  //   return currentTotal;
+  // }, 0);
+  // return balance;
+
+  const totals = transactions.reduce((acc, tx) => {
+    const amount = Number(tx.amount || 0);
+    
+    if (tx.type === 'income') {
+      acc.totalIncome += amount;
+    } else if (tx.type === 'expense') {
+      acc.totalExpenses += amount;
+    }
+    return acc;
+  }, {
+    totalIncome: 0,
+    totalExpenses: 0
+  });
+
+  return {
+    ...totals,
+    balance: totals.totalIncome - totals.totalExpenses
+  };
+
+}
+
+const getTeamDetails = async (teamId: number, userId: number) => {
+  if (!teamId || !userId) bad('Thiếu teamId hoặc userId', 400);
+  await ensureAccessByRoles(teamId, userId, ['owner', 'admin', 'member'], false);
+  const team = await TeamModel.getDetails(teamId, userId);
+  if (!team) {
+    bad('Team không tồn tại', 404);
+  }
+  const balance = await calculateBalance(teamId);
+  const budgetProgress = team.budget ? (balance.totalExpenses / Number(team.budget)) * 100 : 0;
+  const incomeProgress = team.incomeGoal ? (balance.totalIncome / Number(team.incomeGoal)) * 100 : 0;
+  return {
+    ...team,
+    balance: balance.balance,
+    budgetProgress: budgetProgress.toFixed(2) + '%',
+    incomeProgress: incomeProgress.toFixed(2) + '%',
+  };
 }
 
 // Gom export như code base của bạn
@@ -179,4 +304,6 @@ export const TeamService = {
   renameWorkspaceName,
   permitReportAccess,
   sendInviteEmail,
+  handleInviteResponse,
+  getTeamDetails,
 };
