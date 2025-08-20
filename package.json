@@ -1,39 +1,27 @@
 {
-  "name": "Sami",
+  "name": "sami---smart-assistant-for-money-intelligence",
   "version": "1.0.0",
-  "descipstion": "Finance website",
-  "main": "index.js",
-  "type": "module",
+  "description": "",
+  "main": "test-auth-logout.js",
+  "directories": {
+    "doc": "docs",
+    "lib": "lib",
+    "test": "tests"
+  },
+  "devDependencies": {},
   "scripts": {
-    "dev": "tsx watch --env-file=.env server.ts",
     "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/nqthai37/SAMI---Smart-Assistant-for-Money-Intelligence.git"
   },
   "keywords": [],
   "author": "",
   "license": "ISC",
-  "description": "",
-  "dependencies": {
-    "@prisma/client": "^6.13.0",
-    "@supabase/supabase-js": "^2.54.0",
-    "bcrypt": "^6.0.0",
-    "bcryptjs": "^3.0.2",
-    "express": "^5.1.0",
-    "jsonwebtoken": "^9.0.2",
-    "nodemailer": "^7.0.5",
-    "pg": "^8.16.3",
-    "uuid": "^11.1.0"
+  "type": "commonjs",
+  "bugs": {
+    "url": "https://github.com/nqthai37/SAMI---Smart-Assistant-for-Money-Intelligence/issues"
   },
-  "devDependencies": {
-    "@types/bcrypt": "^6.0.0",
-    "@types/bcryptjs": "^2.4.6",
-    "@types/express": "^5.0.3",
-    "@types/jsonwebtoken": "^9.0.10",
-    "@types/nodemailer": "^6.4.14",
-    "@types/uuid": "^10.0.0",
-    "nodemon": "^3.1.10",
-    "prisma": "^6.14.0",
-    "tsx": "^4.20.4",
-    "typescript": "^5.9.2",
-    "vitest": "^3.2.4"
-  }
+  "homepage": "https://github.com/nqthai37/SAMI---Smart-Assistant-for-Money-Intelligence#readme"
 }

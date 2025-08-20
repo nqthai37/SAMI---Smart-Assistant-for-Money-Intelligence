@@ -112,6 +112,20 @@ export const TeamModel = {
       select: { id: true, ownerId: true },
     }),
   
+  /**
+   * Tìm một thành viên trong team.
+   * Trả về record thành viên nếu tìm thấy, ngược lại trả về null.
+   */
+  findMember: async (teamId: number, userId: number) =>
+    prisma.teamMembers.findUnique({
+      where: {
+        teamId_userId: { // Sử dụng composite key từ schema
+          teamId: teamId,
+          userId: userId,
+        },
+      },
+    }),
+
   getCategories: async (teamId: number) =>
     prisma.teams.findUnique({
       where: { id: teamId },

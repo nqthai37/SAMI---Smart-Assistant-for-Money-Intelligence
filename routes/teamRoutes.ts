@@ -1,29 +1,27 @@
 import { Router } from 'express';
-    import * as TeamController from '../controllers/teamController.js';
-    import { authMiddleware } from '../middlewares/authMiddlewares.js'; // Giả sử bạn có một middleware để xác thực user
+import * as TeamController from '../controllers/teamController.js';
+import { TransactionController } from '../controllers/transactionController.js';
+import { authMiddleware } from '../middlewares/authMiddlewares.js';
 
-    const router = Router();
+const router = Router();
 
-    /**
-     * Định nghĩa các routes cho resource 'team'.
-     * * @route /api/teams
-     */
+router.use(authMiddleware);
 
-    // POST /api/teams - Tạo một team mới
-    // `authMiddleware` sẽ được chạy trước để xác thực người dùng và đính kèm `req.user`
-    router.post('/',authMiddleware, TeamController.createTeam);
+/**
+ * Định nghĩa các routes cho resource 'team'.
+ * * @route /api/teams
+ */
 
-    router.delete('/:id', authMiddleware, TeamController.deleteTeam);
-    router.patch('/:id/budget',       authMiddleware, TeamController.setBudget);
-    router.patch('/:id/income-goal',  authMiddleware, TeamController.setIncomeGoal);
-    router.patch('/:id/currency',     authMiddleware, TeamController.setCurrency);
-    router.patch('/:id/categories',   authMiddleware, TeamController.setCategories);
-    router.patch('/:id/name',         authMiddleware, TeamController.renameWorkspace);
-    router.patch('/:id/report-permission', authMiddleware, TeamController.permitMemberViewReport);
+// POST /api/teams - Tạo một team mới
+router.post('/', TeamController.createTeam);
+router.delete('/:id', TeamController.deleteTeam);
 
-    router.post('/:id/send-invite', authMiddleware, TeamController.sendInviteEmail);
-    router.post('/:id/send-invite/response', authMiddleware, TeamController.handleInviteResponse);
+router.post('/:id/send-invite', authMiddleware, TeamController.sendInviteEmail);
+router.post('/:id/send-invite/response', authMiddleware, TeamController.handleInviteResponse);
 
-    router .get('/:id/details', authMiddleware, TeamController.getTeamDetails);
+router .get('/:id/details', authMiddleware, TeamController.getTeamDetails);
 
-    export default router;
+// GET /api/teams/:teamId/transactions - Lấy danh sách giao dịch của một team
+router.get('/:teamId/transactions', TransactionController.getTeamTransactions);
+
+export default router;

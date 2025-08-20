@@ -36,6 +36,92 @@ Content-Type: application/json
 POST http://localhost:8383/api/auth/login
 Content-Type: application/json
 
+<<<<<<< HEAD
+=======
+{
+  "email": "test2612@gmail.com",
+  "password": "password"
+}
+
+# Test User
+###
+POST http://localhost:8383/api/user/change-password
+Content-Type: application/json
+Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6MTIsImlhdCI6MTc1NTQwNDQzMywiZXhwIjoxNzU1NDA4MDMzfQ.h1xl5h10ABMzkA2NuhL9fMclit1H5WaaHvpASNkTofg
+
+{
+  "userID": 11,
+  "oldPassword": "123456",
+  "newPassword": "123456"
+}
+
+###
+PATCH http://localhost:8383/api/user/updateprofile
+Content-Type: application/json
+Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6MTEsImlhdCI6MTc1NTQwMzk1NCwiZXhwIjoxNzU1NDA3NTU0fQ.XnE3HGDSvWndhuU1jPFOLAqYa5fyYa-KquVELUgKi0s
+
+{
+  "firstName": "NewFirstName",
+  "lastName": "NewLastName",
+  "dateOfBirth": "1999-01-01",
+  "gender": "Female"
+}
+
+###
+POST http://localhost:8383/api/auth/login
+Content-Type: application/json
+
+{
+  "email": "pdinh@gmail.com",
+  "password": "testpassword"
+}
+
+### Lấy danh sách team của người dùng (có phân trang)
+# Bạn có thể thay đổi giá trị `page` và `limit` để kiểm tra phân trang.
+GET http://localhost:8383/api/user/teams?page=1&limit=5
+Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6OCwiaWF0IjoxNzU1NDA1ODE2LCJleHAiOjE3NTU0MDk0MTZ9.ITn28ofpMhzxIawMHyMXwBQkSOg-MgwE--bDcAHg0eE
+
+###
+### Lấy trang thứ hai của danh sách team
+GET http://localhost:8383/api/user/teams?page=2&limit=5
+Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6OCwiaWF0IjoxNzU1NDA1ODE2LCJleHAiOjE3NTU0MDk0MTZ9.ITn28ofpMhzxIawMHyMXwBQkSOg-MgwE--bDcAHg0eE
+
+#test Transaction 
+### Thêm một giao dịch mới
+POST http://localhost:8383/api/transactions
+Content-Type: application/json
+Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6OCwiaWF0IjoxNzU1NDA3MDY1LCJleHAiOjE3NTU0MTA2NjV9.GDxW2umqhlzoQgS5Ds52v21yKU24edIGGUlackjIG4A
+
+{
+  "teamId": 6,
+  "amount": 150000,
+  "type": "expense",
+  "categoryName": "Ăn uống",
+  "categoryIcon": "🍔",
+  "description": "Ăn trưa cùng đồng nghiệp",
+  "transactionDate": "2025-08-17T12:30:00.000Z"
+}
+
+### 2. Sửa giao dịch vừa tạo
+PUT http://localhost:8383/api/transactions/19
+Content-Type: application/json
+Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6OCwiaWF0IjoxNzU1NDA3MDY1LCJleHAiOjE3NTU0MTA2NjV9.GDxW2umqhlzoQgS5Ds52v21yKU24edIGGUlackjIG4A
+
+
+{
+  "amount": 200000,
+  "description": "Đã cập nhật mô tả giao dịch"
+}
+
+### 3. Xóa giao dịch vừa tạo
+DELETE http://localhost:8383/api/transactions/18
+Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6OCwiaWF0IjoxNzU1NDA3MDY1LCJleHAiOjE3NTU0MTA2NjV9.GDxW2umqhlzoQgS5Ds52v21yKU24edIGGUlackjIG4A
+
+### Đăng nhập để lấy token mới nhất
+# @name loginRequest
+POST http://localhost:8383/api/auth/login
+Content-Type: application/json
+>>>>>>> origin/pdinh
 
 {
   "email": "pdinh@gmail.com",
@@ -43,6 +129,7 @@ Content-Type: application/json
 }
 
 ###
+<<<<<<< HEAD
 POST http://localhost:8383/api/teams/1/send-invite
 Content-Type: application/json
 Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6OCwiaWF0IjoxNzU1NjcyODE3LCJleHAiOjE3NTU2NzY0MTd9.BDHX1GdrB4YLgoUDIhqpTAGYtAUU7H9_ySMgnBP5hu0
@@ -50,3 +137,37 @@ Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6OCwiaWF0IjoxN
 {
   "email": "thai37205@gmail.com"
 }
+=======
+# Tự động lưu token từ phản hồi của request đăng nhập
+@authToken = {{loginRequest.response.body.token}}
+
+####################################################
+# QUY TRÌNH KIỂM TRA GIAO DỊCH
+# Chạy các request theo thứ tự từ trên xuống dưới
+####################################################
+
+### 1. Lấy danh sách giao dịch của một team (thay teamId=6 bằng ID team của bạn)
+# @name getTransactions
+GET http://localhost:8383/api/teams/6/transactions?page=1&limit=5
+Authorization: Bearer {{authToken}}
+
+###
+# Tự động lấy ID của giao dịch ĐẦU TIÊN trong danh sách
+@transactionId = {{getTransactions.response.body.data[0].id}}
+
+### 2. Sửa giao dịch vừa lấy được ID
+# Request này sử dụng token và transactionId đã được lấy tự động
+PUT http://localhost:8383/api/transactions/{{transactionId}}
+Content-Type: application/json
+Authorization: Bearer {{authToken}}
+
+{
+  "amount": 99999,
+  "description": "Đã cập nhật mô tả giao dịch"
+}
+
+### 3. Xóa giao dịch vừa sửa
+# Request này sử dụng token và transactionId đã được lấy tự động
+DELETE http://localhost:8383/api/transactions/{{transactionId}}
+Authorization: Bearer {{authToken}}
+>>>>>>> origin/pdinh

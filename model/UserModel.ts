@@ -4,6 +4,19 @@ import type { Prisma } from '@prisma/client';
 
 type UserCreateData = Prisma.UserCreateArgs['data'];
 
+//Tìm người dùng qua ID
+const findByUserID = async (userId: number) => {
+  try 
+  {
+    return await prisma.user.findUnique({
+      where: { id: userId },
+    });
+  } catch (error) {
+    console.error('Lỗi Model: không thể tìm người dùng bằng ID.', error);
+    throw new Error('Lỗi tương tác với cơ sở dữ liệu.');
+  }
+};
+
 // Tìm người dùng qua email
 const findByEmail = async (email: string) => {
   try {

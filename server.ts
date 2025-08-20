@@ -1,25 +1,35 @@
+// File: server.ts
+import express from 'express';
+import type { Express } from 'express';
+import cors from 'cors'; // 1. Import cors
+import authRoutes from './routes/authRoutes.js';
+import teamRoutes from './routes/teamRoutes.js';
+import userRoutes from './routes/userRoute.js';
+import transactionRoutes from './routes/transactionRoutes.js';
 
-    // File: server.ts
+const app: Express = express();
+const PORT: number = 8383;
 
-    import express from 'express';
-    import type { Express } from 'express';
+// Initialize global temp storage for development mode
+if (!((global as any).tempResetTokens)) {
+    (global as any).tempResetTokens = new Map();
+    console.log('🔧 Initialized tempResetTokens storage for development mode');
+}
 
-    // SỬA ĐỔI: Thêm đuôi .js vào cuối đường dẫn import
-        import authRoutes from './routes/authRoutes.js';
-        import userRoutes from './routes/userRoute.js';
-        import teamRoutes from './routes/teamRoutes.js';
+// Middleware
+// 2. Sử dụng middleware cors trước tất cả các routes
+// Cấu hình này cho phép request từ origin của frontend (localhost:3000)
+app.use(cors({
+    origin: 'http://localhost:3000'
+}));
 
-    const app: Express = express();
-    const PORT: number = 8383;
+app.use(express.json());
 
-    // Middleware
-    app.use(express.json());
+// Sử dụng các router đã import
+app.use('/api/auth', authRoutes);
+app.use('/api/teams', teamRoutes);
+app.use('/api/user', userRoutes);
+app.use('/api/transactions', transactionRoutes);
 
-    // Sử dụng các router đã import
-    app.use('/api/auth', authRoutes);
-    app.use('/api/user', userRoutes);
-    app.use('/api/teams', teamRoutes);
-
-
-    app.listen(PORT, () => console.log(`Server has started on: ${PORT}`));
+app.listen(PORT, () => console.log(`Server has started on: ${PORT}`));
 
