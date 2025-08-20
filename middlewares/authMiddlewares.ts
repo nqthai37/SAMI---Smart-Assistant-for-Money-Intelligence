@@ -37,19 +37,3 @@ export const authMiddleware = (req: AuthRequest, res: Response, next: NextFuncti
         res.status(401).json({ message: 'Token không hợp lệ.' });
     }
 };
-
-
-export const tokenToUserId = (token: string): string | number | null => {
-    const jwtSecret = process.env.JWT_SECRET;
-    if (!jwtSecret) {
-        console.error("Lỗi nghiêm trọng: Biến môi trường JWT_SECRET chưa được thiết lập.");
-        return null;
-    }
-
-    try {
-        const decoded = jwt.verify(token, jwtSecret as string);
-        return (decoded as { id:  number }).id || null;
-    } catch (error) {
-        return null;
-    }
-};

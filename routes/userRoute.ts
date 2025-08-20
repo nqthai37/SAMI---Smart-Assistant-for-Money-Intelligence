@@ -1,16 +1,11 @@
 import { Router } from 'express';
 import * as userController from '../controllers/userController.js';
+import { authMiddleware } from '../middlewares/authMiddlewares.js';
 
 const router = Router();
 
-// Public test route
-router.get('/test', userController.testController);
-
 // Private user routes
-router.patch('/updateprofile', userController.updateMyProfile);
-router.get('/teams', userController.showTeamList);
-router.get('/notifications', userController.getNotification);
-router.post('/change-password', userController.changePassword);
-router.get('/teams/search', userController.searchTeam);
+router.post('/search-teams', authMiddleware, userController.searchTeams);
+
 
 export default router;

@@ -146,6 +146,38 @@ const sendInviteEmail: RequestHandler = async (req, res) => {
   }
 }
 
+const handleInviteResponse: RequestHandler = async (req, res) => {
+  try {
+    const { inviteToken, response, email } = req.body;
+    
+    // Xử lý phản hồi lời mời
+    const result = await TeamService.handleInviteResponse(inviteToken, response, email);
+    
+    return res.status(200).json(result);
+  }
+  catch (error) {
+    console.error('Error handling invite response:', error);
+    return res.status(500).json({ message: 'Lỗi khi xử lý phản hồi lời mời' });
+  }
+}
+
+const getTeamDetails: RequestHandler = async (req, res) => {
+  try {
+    const teamId = Number(req.params.id);
+    const userId = (req as AuthenticatedRequest).user.id;
+
+    if (Number.isNaN(teamId)) {
+      return res.status(400).json({ message: 'Invalid team id' });
+    }
+
+    const teamDetails = await TeamService.getTeamDetails(teamId, userId);
+    return res.status(200).json(teamDetails);
+  } catch (error: any) {
+    console.error('Error getting team details:', error);
+    return res.status(error?.statusCode ?? 500).json({ message: error?.message ?? 'Server error' });
+  }
+}
+
 export {
     createTeam,
     deleteTeam,
@@ -156,4 +188,6 @@ export {
     renameWorkspace,
     permitMemberViewReport,
     sendInviteEmail,
+    handleInviteResponse,
+    getTeamDetails,
 };

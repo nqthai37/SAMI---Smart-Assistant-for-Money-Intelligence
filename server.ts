@@ -6,6 +6,7 @@
 
     // SỬA ĐỔI: Thêm đuôi .js vào cuối đường dẫn import
         import authRoutes from './routes/authRoutes.js';
+        import userRoutes from './routes/userRoute.js';
         import teamRoutes from './routes/teamRoutes.js';
 
     const app: Express = express();
@@ -16,7 +17,9 @@
 
     // Sử dụng các router đã import
     app.use('/api/auth', authRoutes);
+    app.use('/api/user', userRoutes);
     app.use('/api/teams', teamRoutes);
+
 
     app.listen(PORT, () => console.log(`Server has started on: ${PORT}`));
 

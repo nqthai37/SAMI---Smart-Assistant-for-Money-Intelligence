@@ -8,7 +8,7 @@ GET http://localhost:8383/api/user/test
 POST http://localhost:8383/api/user/test
 
 
-###
+### 
 POST http://localhost:8383/api/auth/login
 Content-Type: application/json
 
@@ -17,14 +17,15 @@ Content-Type: application/json
   "password": "testpassword"
 }
 
+
 ###
 POST http://localhost:8383/api/teams
 Content-Type: application/json
-Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6OCwiaWF0IjoxNzU1MzM4NzgyLCJleHAiOjE3NTUzNDIzODJ9._yuF671OVrEVKopYGy4zMPyKIfy8R34Y7LxXryWl3lc
+Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6OCwiaWF0IjoxNzU1Njg3MDE0LCJleHAiOjE3NTU2OTA2MTR9.Yd-eVvSzs4qa9v6w3AOczIH8EiLFNiYuo76BtE8O7OU
 
 {
-  "id": 8,
-  "name": "My Super Cool Team"
+  "id": 11,
+  "name": "Test Get Details"
 }
 
 ###
@@ -90,10 +91,39 @@ Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6OCwiaWF0IjoxN
 }
 
 ###
-POST http://localhost:8383/api/teams/1/send-invite
+POST http://localhost:8383/api/teams/13/send-invite
 Content-Type: application/json
-Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6OCwiaWF0IjoxNzU1NjY2NjMxLCJleHAiOjE3NTU2NzAyMzF9.Nvr5F5x2GE2lJtE6qPB39gOLSqfPyLICWu_nhXhtU3E
+Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6OCwiaWF0IjoxNzU1Njg2NjQzLCJleHAiOjE3NTU2OTAyNDN9.tTEYIgX4kGdMlKUDn_1lPnouudVRm-TP5k3UDKh8HZM
 
 {
-  "email": "thai37205@gmail.com"
+  "email": "khoi10012005@gmail.com"
+}
+
+### Test accept invitation
+POST http://localhost:8383/api/teams/1/send-invite/response
+Content-Type: application/json
+Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6OCwiaWF0IjoxNzU1NjgyNTQ1LCJleHAiOjE3NTU2ODYxNDV9.A7-mT4aDHSKDmmcmFjFthYTVpvGs0HBCYiD6LJkTSqc
+
+{
+    "inviteToken": "af0e092c-4649-49a7-8055-09e70e83a5de",
+    "response": "accept",
+    "email": "thai37205@gmail.com"
+}
+
+### Test get team details
+GET http://localhost:8383/api/teams/13/details
+Content-Type: application/json
+Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6OCwiaWF0IjoxNzU1Njg2NjQzLCJleHAiOjE3NTU2OTAyNDN9.tTEYIgX4kGdMlKUDn_1lPnouudVRm-TP5k3UDKh8HZM
+
+{
+  "teamId": 13
+}
+
+### test search teams
+POST http://localhost:8383/api/user/search-teams
+Content-Type: application/json
+Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6OCwiaWF0IjoxNzU1NjkxMjk0LCJleHAiOjE3NTU2OTQ4OTR9.mfxKoQ9KhfKXmSYR0FvuCUSUgEAu_UcX_qHAk1t2584
+
+{
+  "keyword": "Nhóm"
 }

@@ -39,6 +39,33 @@ const create = async (userData: Prisma.UserCreateInput) => {
   }
 };
 
+// findByKeyWord
+const findByKeyWord = async (userId: number, keyword: string) => {
+  try {
+    return await prisma.teams.findMany({
+      where: {
+        OR: [
+          { teamName: { contains: keyword, mode: 'insensitive' } },
+        ],
+        teamMembers: {
+          some: {
+            userId: userId,
+          },
+        },
+      },
+      include: {
+        teamMembers: true,
+      },
+    });
+  } catch (error) {
+    console.error('Lỗi Model: không thể tìm kiếm đội bằng từ khóa.', error);
+    throw new Error('Lỗi tương tác với cơ sở dữ liệu.');
+  }
+}
 
-
-export const UserModel = { findByEmail, create, findById };
+export const UserModel = { 
+  findByEmail, 
+  create, 
+  findById,
+  findByKeyWord,
+};

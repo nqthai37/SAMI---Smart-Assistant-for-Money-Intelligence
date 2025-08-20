@@ -15,6 +15,8 @@ model User {
   email           String            @unique(map: "users_email_key") @db.VarChar(255)
   passwordHash    String            @db.VarChar(255)
   gender          String?           @db.VarChar(50)
+  dateOfBirth     DateTime?
+  phoneNumber     String?           @db.VarChar(15)
   created_at      DateTime?         @default(now()) @db.Timestamptz(6)
   updated_at      DateTime?         @default(now()) @db.Timestamptz(6)
   changeRequests  changeRequests[]
@@ -24,6 +26,7 @@ model User {
   teamMembers     teamMembers[]
   teams           teams[]
   transactions    transactions[]
+  
 }
 
 model notifications {
@@ -98,16 +101,19 @@ model passwordResets {
 }
 
 model teamInvitations {
-  id           Int               @id(map: "team_invitations_pkey") @default(autoincrement())
-  token        String            @unique(map: "team_invitations_token_key") @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  id           Int             @id @default(autoincrement())
+  token        String         @unique @db.Uuid
   teamId       Int
   inviterId    Int
-  inviteeEmail String            @db.VarChar(255)
+  inviteeEmail String
   status       invitation_status @default(pending)
-  createdAt    DateTime?         @default(now()) @db.Timestamptz(6)
-  expiresAt    DateTime?         @default(dbgenerated("(now() + '7 days'::interval)")) @db.Timestamptz(6)
-  User         User              @relation(fields: [inviterId], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "team_invitations_inviter_id_fkey")
-  teams        teams             @relation(fields: [teamId], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "team_invitations_team_id_fkey")
+  expiresAt    DateTime
+  createdAt    DateTime       @default(now())
+  
+  team         teams          @relation(fields: [teamId], references: [id])
+  inviter      User           @relation(fields: [inviterId], references: [id])
+
+  @@index([inviteeEmail, teamId])
 }
 
 model teamMembers {

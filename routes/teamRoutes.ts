@@ -22,5 +22,8 @@ import { Router } from 'express';
     router.patch('/:id/report-permission', authMiddleware, TeamController.permitMemberViewReport);
 
     router.post('/:id/send-invite', authMiddleware, TeamController.sendInviteEmail);
+    router.post('/:id/send-invite/response', authMiddleware, TeamController.handleInviteResponse);
+
+    router .get('/:id/details', authMiddleware, TeamController.getTeamDetails);
 
     export default router;
