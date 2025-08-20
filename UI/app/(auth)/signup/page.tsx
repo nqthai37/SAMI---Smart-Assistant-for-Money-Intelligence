@@ -44,7 +44,7 @@ export default function SignupPage() {
     try {
       await signup(email, password, firstName, lastName)
       toast.success("Đăng ký tài khoản thành công! Vui lòng đăng nhập.")
-      router.push("/auth/login") // Chuyển hướng đến trang đăng nhập sau khi đăng ký
+      router.push("/login") // Chuyển hướng đến trang đăng nhập sau khi đăng ký
     } catch (error: any) {
       toast.error(error.message || "Đăng ký thất bại. Vui lòng thử lại.")
     } finally {

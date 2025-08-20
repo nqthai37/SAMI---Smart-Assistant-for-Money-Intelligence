@@ -30,6 +30,7 @@ export const updateUserProfile = async (
     firstName?: string;
     lastName?: string;
     email?: string;
+    phoneNumber?: string;
     dateOfBirth?: string | Date;
     gender?: string;
   }

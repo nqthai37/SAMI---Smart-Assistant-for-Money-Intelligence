@@ -8,7 +8,7 @@ const router = Router();
 // Private user routes
 // All routes below this will be protected by the authMiddleware
 router.use(authMiddleware);
-
+router.get('/profile', userController.getMyProfile);
 router.patch('/updateprofile', userController.updateMyProfile);
 router.get('/teams', userController.showTeamList);
 router.get('/notifications', userController.getNotification);
