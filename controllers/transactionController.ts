@@ -124,6 +124,30 @@ const confirmChange = async (req: Request, res: Response) => {
   }
 };
 
+const getTeamTransactions = async (req: Request, res: Response) => {
+  try {
+    const userId = req.user?.id;
+    if (!userId) {
+      return res.status(401).json({ message: 'Unauthorized' });
+    }
+
+    const teamId = parseInt(req.params.teamId, 10);
+    const page = parseInt(req.query.page as string) || 1;
+    const limit = parseInt(req.query.limit as string) || 10;
+
+    if (isNaN(teamId)) {
+      return res.status(400).json({ message: 'Team ID không hợp lệ.' });
+    }
+
+    const result = await TransactionService.listTransactionsByTeam(teamId, userId, { page, limit });
+
+    return res.json(result);
+  } catch (error: any) {
+    console.error('getTeamTransactions error:', error);
+    return res.status(error.statusCode || 500).json({ message: error.message || 'Server error' });
+  }
+};
+
 export const TransactionController = {
   addTransaction,
   editTransaction,
@@ -131,4 +155,5 @@ export const TransactionController = {
   requestEditTransaction,
   requestDeleteTransaction,
   confirmChange,
+  getTeamTransactions, // Thêm hàm mới vào export
 };

@@ -59,6 +59,50 @@ export const addTransactionRecord = async (
   return await TransactionModel.create(newTransactionData);
 };
 
+// List transactions for a specific team with pagination
+export const listTransactionsByTeam = async (
+  teamId: number,
+  userId: number,
+  options: { page: number; limit: number }
+) => {
+  // 1. Kiểm tra xem người dùng có phải là thành viên của team không
+  const member = await TeamModel.findMember(teamId, userId);
+  if (!member) {
+    const error = new Error('Bạn không có quyền xem các giao dịch của team này.');
+    (error as any).statusCode = 403;
+    throw error;
+  }
+
+  const { page, limit } = options;
+  const skip = (page - 1) * limit;
+
+  // 2. Lấy các giao dịch và tổng số lượng để phân trang
+  const [transactions, totalTransactions] = await prisma.$transaction([
+    prisma.transactions.findMany({
+      where: { teamId: teamId },
+      skip: skip,
+      take: limit,
+      orderBy: {
+        transactionDate: 'desc', // Sắp xếp giao dịch mới nhất lên đầu
+      },
+    }),
+    prisma.transactions.count({
+      where: { teamId: teamId },
+    }),
+  ]);
+
+  return {
+    data: transactions,
+    pagination: {
+      page,
+      limit,
+      totalItems: totalTransactions,
+      totalPages: Math.ceil(totalTransactions / limit),
+    },
+  };
+};
+
+
 // Permission checks
 export const hasPermissionToChangeOtherTransaction = async (teamId: number, userId: number) => {
   // SỬA LỖI: Sử dụng TeamModel thay vì MemberModel đã bị xóa
@@ -193,8 +237,17 @@ export const confirmTransactionChange = async (
     if (request.type === 'DELETE') {
       await TransactionModel.remove(transaction.id);
     } else {
+      // SỬA LỖI: Cần kiểm tra reason có phải là JSON hợp lệ không
+      let updatesFromRequest = {};
+      try {
+        if (request.reason) {
+          updatesFromRequest = JSON.parse(request.reason);
+        }
+      } catch {
+        // Bỏ qua nếu reason không phải là JSON, tránh làm sập server
+      }
       await TransactionModel.update(transaction.id, {
-        ...JSON.parse(request.reason as string),
+        ...updatesFromRequest,
         updatedAt: new Date(),
       });
     }
