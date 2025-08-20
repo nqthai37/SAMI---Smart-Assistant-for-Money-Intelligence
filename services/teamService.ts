@@ -190,47 +190,13 @@ const sendInviteEmail=async (teamId: number, email: string) => {
           success: true, 
           message: 'Email mời tham gia nhóm đã được gửi.',
           inviteToken, // In dev mode, return token for testing
-          //inviteLink: ${process.env.FRONTEND_URL}/send-invite?token=${inviteToken}
+          inviteLink: '${process.env.FRONTEND_URL}/send-invite?token=${inviteToken}'
         };
-      // } else {
-      //   // Production mode: Use database
-      //   // Deactivate any existing tokens for this user
-      //   await (prisma as any).passwordResets.updateMany({
-      //     where: { 
-      //       userId: user.id,
-      //       used: false,
-      //       expiresAt: {
-      //         gt: new Date()
-      //       }
-      //     },
-      //     data: { used: true }
-      //   });
-
-        // Create new token
-
-        // Create new reset token
-        const resetRecord = await (prisma as any).passwordResets.create({
-          data: {
-            userId: user.id,
-          }
-        });
-
-        const emailResult = await EmailService.sendPasswordReset(email, resetRecord.token);
         
-        // if (emailResult.success) {
-        //   return { 
-        //     success: true, 
-        //     message: 'Email khôi phục mật khẩu đã được gửi.',
-        //   };
-        // } else {
-        //   throw new Error('Không thể gửi email khôi phục mật khẩu.');
-        // }
-
-        //create invite token
       }
     } catch (dbError) {
       console.error('Database error during password reset:', dbError);
-      throw new Error('Không thể tạo token khôi phục mật khẩu.');
+      throw new Error('Không thể tạo token.');
     }
   }
 
