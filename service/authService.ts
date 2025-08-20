@@ -76,6 +76,15 @@ const login = async (email: string, password: string) => {
   return userWithoutPassword;
 };
 
+const logout = async () => {
+  // For client-side logout, just return success
+  // Client will clear localStorage/sessionStorage
+  return {
+    success: true,
+    message: 'Đăng xuất thành công.'
+  };
+};
+
 
 const forgotPassword = async (email: string) => {
   // 1) Validate
@@ -366,14 +375,16 @@ const sendBudgetAlert = async (
 
 export const AuthService = { 
   register, 
-  login, 
+  login,
+  logout,
   forgotPassword,
   resetPassword
 };
 
 export const EnhancedAuthService = { 
   register, 
-  login, 
+  login,
+  logout,
   forgotPassword,
   resetPassword,
   sendTransactionNotification,

@@ -30,8 +30,20 @@ app.get('/login', (req, res) => {
     res.sendFile('login.html', { root: 'public' });
 });
 
+app.get('/logout', (req, res) => {
+    res.sendFile('logout.html', { root: 'public' });
+});
+
+app.get('/dashboard', (req, res) => {
+    res.sendFile('dashboard.html', { root: 'public' });
+});
+
+app.get('/', (req, res) => {
+    res.sendFile('dashboard.html', { root: 'public' });
+});
+
 // API Routes
-app.use('/api/auth', authRoutes);
+app.use('/auth', authRoutes);
 
 // Global error handler
 app.use((err: any, req: any, res: any, next: any) => {

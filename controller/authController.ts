@@ -48,6 +48,20 @@ const login = async (req: Request, res: Response) => {
     }
 };
 
+const logout = async (req: Request, res: Response) => {
+    try {
+        // Call logout service
+        const result = await AuthService.logout();
+
+        return res.status(200).json(result);
+
+    } catch (error: any) {
+        return res.status(error.statusCode || 500).json({
+            message: error.message || "Đã có lỗi không mong muốn xảy ra."
+        });
+    }
+};
+
 
 const forgotPassword = async (req: Request, res: Response) => {
     try {
@@ -94,6 +108,7 @@ const resetPassword = async (req: Request, res: Response) => {
 export {
     register,
     login,
+    logout,
     forgotPassword,
     resetPassword,
 };

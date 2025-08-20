@@ -6,7 +6,7 @@ import type {
   TransactionEmailData, 
   BudgetAlertData,
   EmailResult
-} from '../email.types.js';
+} from '../service/email.types.ts';
 
 const router = Router();
 

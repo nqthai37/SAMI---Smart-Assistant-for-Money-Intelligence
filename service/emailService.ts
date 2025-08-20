@@ -8,7 +8,7 @@ import type {
   TransactionEmailData,
   BudgetAlertData,
   EmailTemplateData
-} from 'email.types.js';
+} from './email.types.js';
 
 config();
 
