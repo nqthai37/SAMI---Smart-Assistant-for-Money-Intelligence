@@ -1,6 +1,7 @@
 // services/teamService.ts
 import { TeamModel } from '../model/teamModel.js';
-
+import { UserModel } from '../model/UserModel.js'; // Giả sử bạn có một UserModel để tìm người dùng theo email
+import EmailService from './emailService.js'; // Giả sử bạn có một EmailService để gửi email
 // ===== Validators (đặt ngay trong file cho đỡ thiếu import) =====
 const bad = (msg: string, code = 400) => {
   const e: any = new Error(msg);
@@ -133,6 +134,106 @@ const permitReportAccess = async (teamId: number, userId: number, allow: boolean
   return TeamModel.updateReportPermission(teamId, allow);
 };
 
+const sendInviteEmail=async (teamId: number, email: string) => {
+    // 1) Validate
+    if (!email) {
+      const error = new Error('Email không tồn tại');
+      (error as any).statusCode = 400;
+      throw error;
+    }
+
+    // 2) Tìm người dùng theo email
+    let user;
+    try {
+      user = await UserModel.findByEmail(email);
+      
+      if (!user) {
+        // Security: Don't reveal if email exists or not
+        return { 
+          success: true, 
+          message: 'Nếu email tồn tại, nugời dùng sẽ nhận được email mời.',
+        };
+      }
+    } catch (findUserError) {
+      console.error('❌ Error finding user:', findUserError);
+      throw new Error('Lỗi khi tìm người dùng.');
+    }
+
+    // 3) 🔐 Create reset token
+    try {
+      // Check if we're in development mode without database connection
+      const isDevelopmentMode = process.env.NODE_ENV !== 'production' && process.env.SEND_REAL_EMAILS?.toLowerCase().trim() !== 'true';
+      
+      let inviteToken: string;
+      
+      if (isDevelopmentMode) {
+        // Development mode: Generate simple token without database
+        inviteToken = Math.random().toString(36).substring(2, 15) + 
+                    Math.random().toString(36).substring(2, 15) + 
+                    Date.now().toString(36);
+                    
+        // console.log(� [DEV] Password reset for ${email}, token: ${inviteToken});
+        // console.log(🔗 [DEV] Reset link: ${process.env.FRONTEND_URL}/reset-password?token=${inviteToken});
+        
+        // Store token temporarily in memory for demo (not production ready)
+        if (!(global as any).tempInviteTokens) {
+          (global as any).tempInviteTokens = new Map();
+        }
+        (global as any).tempInviteTokens.set(inviteToken, {
+          userId: user.id,
+          email: email,
+          expiresAt: new Date(Date.now() + 60 * 60 * 1000), // 1 hour
+          used: false
+        });
+        
+        return { 
+          success: true, 
+          message: 'Email mời tham gia nhóm đã được gửi.',
+          inviteToken, // In dev mode, return token for testing
+          //inviteLink: ${process.env.FRONTEND_URL}/send-invite?token=${inviteToken}
+        };
+      // } else {
+      //   // Production mode: Use database
+      //   // Deactivate any existing tokens for this user
+      //   await (prisma as any).passwordResets.updateMany({
+      //     where: { 
+      //       userId: user.id,
+      //       used: false,
+      //       expiresAt: {
+      //         gt: new Date()
+      //       }
+      //     },
+      //     data: { used: true }
+      //   });
+
+        // Create new token
+
+        // Create new reset token
+        const resetRecord = await (prisma as any).passwordResets.create({
+          data: {
+            userId: user.id,
+          }
+        });
+
+        const emailResult = await EmailService.sendPasswordReset(email, resetRecord.token);
+        
+        // if (emailResult.success) {
+        //   return { 
+        //     success: true, 
+        //     message: 'Email khôi phục mật khẩu đã được gửi.',
+        //   };
+        // } else {
+        //   throw new Error('Không thể gửi email khôi phục mật khẩu.');
+        // }
+
+        //create invite token
+      }
+    } catch (dbError) {
+      console.error('Database error during password reset:', dbError);
+      throw new Error('Không thể tạo token khôi phục mật khẩu.');
+    }
+  }
+
 // Gom export như code base của bạn
 export const TeamService = {
   createNewTeam,
@@ -143,4 +244,5 @@ export const TeamService = {
   setFinanceCategories,
   renameWorkspaceName,
   permitReportAccess,
+  sendInviteEmail,
 };

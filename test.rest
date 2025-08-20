@@ -88,3 +88,12 @@ Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6OCwiaWF0IjoxN
 {
   "allow": true
 }
+
+###
+POST http://localhost:8383/api/teams/1/send-invite
+Content-Type: application/json
+Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6OCwiaWF0IjoxNzU1NjY2NjMxLCJleHAiOjE3NTU2NzAyMzF9.Nvr5F5x2GE2lJtE6qPB39gOLSqfPyLICWu_nhXhtU3E
+
+{
+  "email": "thai37205@gmail.com"
+}

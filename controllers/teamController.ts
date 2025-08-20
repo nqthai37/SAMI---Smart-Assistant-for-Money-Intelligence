@@ -131,6 +131,21 @@ const permitMemberViewReport: RequestHandler = async (req, res) => {
 };
 
 
+const sendInviteEmail: RequestHandler = async (req, res) => {
+  try {
+    const teamId = Number(req.params.id);
+    const { email } = req.body;
+
+    // Gửi email mời tham gia team
+    await TeamService.sendInviteEmail(teamId, email);
+
+    return res.status(200).json({ message: 'Email mời đã được gửi thành công' });
+  } catch (error) {
+    console.error('Error sending invite email:', error);
+    return res.status(500).json({ message: 'Lỗi khi gửi email mời' });
+  }
+}
+
 export {
     createTeam,
     deleteTeam,
@@ -140,4 +155,5 @@ export {
     setCategories,
     renameWorkspace,
     permitMemberViewReport,
+    sendInviteEmail,
 };

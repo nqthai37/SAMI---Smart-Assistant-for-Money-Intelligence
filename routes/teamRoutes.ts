@@ -21,4 +21,6 @@ import { Router } from 'express';
     router.patch('/:id/name',         authMiddleware, TeamController.renameWorkspace);
     router.patch('/:id/report-permission', authMiddleware, TeamController.permitMemberViewReport);
 
+    router.post('/:id/send-invite', authMiddleware, TeamController.sendInviteEmail);
+
     export default router;
