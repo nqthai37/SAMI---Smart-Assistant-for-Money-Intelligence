@@ -34,6 +34,9 @@ const assertTeamName = (name: any) => {
   if (typeof name !== 'string' || name.trim().length === 0) {
     bad('Tên nhóm không được để trống.', 400);
   }
+  if (name.trim().length > 50) {
+    bad('Tên nhóm không được dài quá 50 ký tự.', 400);
+  }
 };
 
 // ===== Helper kiểm tra quyền LINH ĐỘNG theo từng API =====

@@ -154,17 +154,17 @@ export default function Homepage() {
                     onClick={() => handleTeamClick(team)}
                   >
                     <CardContent className="p-6">
-                      <div className="flex items-start justify-between">
-                          <div className="flex items-start gap-4 flex-1">
-                              <div className={`w-4 h-4 rounded-full ${team.color} mt-1`}></div>
-                              <div className="flex-1">
+                      <div className="flex items-start justify-between gap-4">
+                          <div className="flex items-start gap-4 flex-1 min-w-0">
+                              <div className={`w-4 h-4 rounded-full ${team.color} mt-1 flex-shrink-0`}></div>
+                              <div className="flex-1 min-w-0">
                                   <div className="flex items-center gap-3 mb-2">
-                                      <h3 className="font-semibold text-gray-900">{team.teamName}</h3>
-                                      <Badge variant="secondary" className="text-xs">
+                                      <h3 className="font-semibold text-gray-900 truncate" title={team.teamName}>{team.teamName}</h3>
+                                      <Badge variant="secondary" className="text-xs flex-shrink-0">
                                       {team.currentUserRole}
                                       </Badge>
                                   </div>
-                                  {team.description && <p className="text-sm text-gray-600 mb-3">{team.description}</p>}
+                                  {team.description && <p className="text-sm text-gray-600 mb-3 truncate">{team.description}</p>}
                                   <div className="flex items-center gap-6 text-sm">
                                       <div className="flex items-center gap-1">
                                           <Users className="w-4 h-4 text-gray-400" />

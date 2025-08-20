@@ -16,7 +16,7 @@ export default function SettingsPage() {
   const router = useRouter()
 
   return (
-    // ✅ XÓA PADDING VÀ CÁC CLASS KHÁC, CHỈ GIỮ LẠI `space-y-6`
+    // Bỏ các class không cần thiết, layout chính sẽ xử lý việc căn chỉnh
     <div className="space-y-6">
       <div className="flex items-center">
         <Button variant="ghost" onClick={() => router.back()} size="icon" className="mr-2">
