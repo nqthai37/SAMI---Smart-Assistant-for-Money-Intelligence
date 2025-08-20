@@ -31,11 +31,12 @@ export default function LoginPage() {
 
       if (success) {
         toast.success("Đăng nhập thành công!")
-        router.push("/")
+        router.push("/") // Chuyển hướng về trang chủ
       } else {
         toast.error("Email hoặc mật khẩu không đúng!")
       }
     } catch (error) {
+      console.error("Login error:", error)
       toast.error("Có lỗi xảy ra, vui lòng thử lại!")
     } finally {
       setIsLoading(false)
@@ -209,15 +210,12 @@ export default function LoginPage() {
       </div>
 
       {/* Right Side - Illustration */}
-      <div className="flex-1 bg-gradient-to-br from-blue-50 to-purple-50 flex items-center justify-center p-8">
+      <div className="hidden lg:flex flex-1 bg-gradient-to-br from-blue-50 to-purple-50 items-center justify-center p-8">
         <div className="relative">
-          {/* Hand holding phone illustration */}
           <div className="relative">
             <div className="w-80 h-96 bg-gradient-to-br from-blue-400 to-blue-600 rounded-3xl transform rotate-12 shadow-2xl">
-              {/* Phone screen */}
               <div className="absolute inset-4 bg-white rounded-2xl p-6 transform -rotate-12">
                 <div className="flex flex-col items-center justify-center h-full">
-                  {/* Security shield icon */}
                   <div className="w-16 h-16 bg-green-500 rounded-full flex items-center justify-center mb-4">
                     <svg className="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path
@@ -228,8 +226,6 @@ export default function LoginPage() {
                       />
                     </svg>
                   </div>
-
-                  {/* Security badge */}
                   <div className="bg-green-100 px-4 py-2 rounded-full mb-4">
                     <div className="flex items-center gap-2">
                       <div className="w-6 h-6 bg-green-500 rounded-full flex items-center justify-center">
@@ -240,8 +236,6 @@ export default function LoginPage() {
                       <span className="text-green-700 text-sm font-medium">Secure</span>
                     </div>
                   </div>
-
-                  {/* Rating stars */}
                   <div className="flex gap-1">
                     {[1, 2, 3, 4, 5].map((star) => (
                       <svg key={star} className="w-4 h-4 text-yellow-400" fill="currentColor" viewBox="0 0 20 20">
@@ -253,8 +247,6 @@ export default function LoginPage() {
               </div>
             </div>
           </div>
-
-          {/* Floating elements */}
           <div className="absolute -top-4 -right-4 w-8 h-8 bg-green-400 rounded-full animate-bounce"></div>
           <div className="absolute -bottom-6 -left-6 w-6 h-6 bg-blue-400 rounded-full animate-pulse"></div>
         </div>

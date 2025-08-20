@@ -1,128 +1,110 @@
-"use client"
+"use client";
 
-import { createContext, useContext, useState, useEffect, type ReactNode } from "react"
+import { createContext, useContext, useEffect, useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
 
-export interface User {
-  id: string
-  name: string
-  email: string
-  avatar: string
-  firstName: string
-  lastName: string
-  phoneNumber: string
-  dateOfBirth?: string // New field
-  gender?: "Male" | "Female" | "Other" // New field
-}
+// Định nghĩa kiểu dữ liệu cho user và context
+type User = {
+  id: number;
+  email: string;
+  firstName?: string;
+  lastName?: string;
+};
 
-interface AuthContextType {
-  user: User | null
-  isLoading: boolean
-  login: (email: string, password: string) => Promise<boolean>
-  signup: (data: any) => Promise<boolean>
-  logout: () => void
-  updateUser: (data: Partial<User>) => Promise<boolean> // New function
-}
+type AuthContextType = {
+  user: User | null;
+  token: string | null;
+  loading: boolean;
+  login: (email: string, password: string) => Promise<boolean>;
+  signup: (email: string, password: string, firstName: string, lastName: string) => Promise<void>;
+  logout: () => void;
+};
 
-const AuthContext = createContext<AuthContextType | undefined>(undefined)
+const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-// Mock users database
-const mockUsers: User[] = [
-  {
-    id: "1",
-    name: "Phùng Đình",
-    email: "phungdinh@gmail.com",
-    avatar: "PĐ",
-    firstName: "Phùng",
-    lastName: "Đình",
-    phoneNumber: "0123456789",
-    dateOfBirth: "1990-05-15", // Sample data
-    gender: "Male", // Sample data
-  },
-]
+// Lấy URL của backend từ biến môi trường, nếu không có thì dùng default
+const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8383/api";
 
-export function AuthProvider({ children }: { children: ReactNode }) {
-  const [user, setUser] = useState<User | null>(null)
-  const [isLoading, setIsLoading] = useState(true)
+export function AuthProvider({ children }: { children: React.ReactNode }) {
+  const [user, setUser] = useState<User | null>(null);
+  const [token, setToken] = useState<string | null>(null);
+  const [loading, setLoading] = useState(true);
+  const router = useRouter();
 
+  // Khi component được mount, kiểm tra localStorage để tự động đăng nhập
   useEffect(() => {
-    // Check if user is logged in from localStorage
-    const savedUser = localStorage.getItem("user")
-    if (savedUser) {
-      setUser(JSON.parse(savedUser))
+    try {
+      const storedToken = localStorage.getItem("sami_token");
+      const storedUser = localStorage.getItem("sami_user");
+      if (storedToken && storedUser) {
+        setToken(storedToken);
+        setUser(JSON.parse(storedUser));
+      }
+    } catch (error) {
+      console.error("Failed to parse auth data from localStorage", error);
     }
-    setIsLoading(false)
-  }, [])
+    setLoading(false);
+  }, []);
 
+  // Hàm đăng nhập
   const login = async (email: string, password: string): Promise<boolean> => {
-    // Mock authentication
-    const foundUser = mockUsers.find((u) => u.email === email)
+    const res = await fetch(`${API_URL}/auth/login`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email, password }),
+    });
 
-    if (foundUser && password === "123456") {
-      setUser(foundUser)
-      localStorage.setItem("user", JSON.stringify(foundUser))
-      return true
+    if (!res.ok) return false;
+
+    const data = await res.json(); // Backend trả về { message, token, user }
+    if (data?.token && data?.user) {
+      setToken(data.token);
+      setUser(data.user);
+      localStorage.setItem("sami_token", data.token);
+      localStorage.setItem("sami_user", JSON.stringify(data.user));
+      return true;
     }
+    return false;
+  };
 
-    return false
-  }
+  // Hàm đăng ký
+  const signup = async (email: string, password: string, firstName: string, lastName: string): Promise<void> => {
+    const res = await fetch(`${API_URL}/auth/register`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email, password, firstName, lastName }),
+    });
 
-  const signup = async (data: any): Promise<boolean> => {
-    // Check if email already exists
-    const existingUser = mockUsers.find((u) => u.email === data.email)
-    if (existingUser) {
-      return false
+    if (!res.ok) {
+      const errorData = await res.json().catch(() => ({ message: "Đăng ký thất bại." }));
+      // Ném lỗi để component có thể bắt và hiển thị thông báo
+      throw new Error(errorData.message);
     }
+  };
 
-    // Create new user
-    const newUser: User = {
-      id: Date.now().toString(),
-      name: `${data.firstName} ${data.lastName}`,
-      email: data.email,
-      avatar: `${data.firstName.charAt(0)}${data.lastName.charAt(0)}`,
-      firstName: data.firstName,
-      lastName: data.lastName,
-      phoneNumber: data.phoneNumber,
-      dateOfBirth: data.dateOfBirth || undefined, // Include new fields
-      gender: data.gender || undefined, // Include new fields
-    }
-
-    mockUsers.push(newUser)
-    setUser(newUser)
-    localStorage.setItem("user", JSON.stringify(newUser))
-    return true
-  }
-
+  // Hàm đăng xuất
   const logout = () => {
-    setUser(null)
-    localStorage.removeItem("user")
-  }
+    setUser(null);
+    setToken(null);
+    localStorage.removeItem("sami_token");
+    localStorage.removeItem("sami_user");
+    router.push('/auth/login'); // Chuyển hướng về trang đăng nhập
+  };
 
-  // New function to update user data
-  const updateUser = async (data: Partial<User>): Promise<boolean> => {
-    if (!user) return false
+  // Dùng useMemo để tối ưu, tránh re-render không cần thiết
+  const value = useMemo(
+    () => ({ user, token, loading, login, signup, logout }),
+    [user, token, loading]
+  );
 
-    const updatedUser = { ...user, ...data }
-    const userIndex = mockUsers.findIndex((u) => u.id === user.id)
-    if (userIndex !== -1) {
-      mockUsers[userIndex] = updatedUser
-    }
-
-    setUser(updatedUser)
-    localStorage.setItem("user", JSON.stringify(updatedUser))
-    return true
-  }
-
-  return (
-    <AuthContext.Provider value={{ user, isLoading, login, signup, logout, updateUser }}>
-      {children}
-    </AuthContext.Provider>
-  )
+  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }
 
+// Custom hook để sử dụng AuthContext dễ dàng hơn
 export function useAuth() {
-  const context = useContext(AuthContext)
+  const context = useContext(AuthContext);
   if (context === undefined) {
-    throw new Error("useAuth must be used within an AuthProvider")
+    throw new Error("useAuth must be used within an AuthProvider");
   }
-  return context
+  return context;
 }
