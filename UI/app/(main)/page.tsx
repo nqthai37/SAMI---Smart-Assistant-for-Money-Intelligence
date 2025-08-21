@@ -24,6 +24,8 @@ import { MemberView } from "@/features/teams/team-views/member-view";
 import { CreateTeamDialog } from "@/features/teams/components/create-team-dialog";
 import { api } from "@/lib/api";
 
+import {getTeamDetails} from "../../../controllers/teamController";
+
 export default function Homepage() {
   const [selectedTeam, setSelectedTeam] = useState<Team | null>(null);
   const [currentView, setCurrentView] = useState<"list" | "team">("list");
@@ -36,6 +38,8 @@ export default function Homepage() {
   const [allTransactions, setAllTransactions] = useState<Transaction[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isTeamLoading, setIsTeamLoading] = useState(false);
+  // Thêm state lưu balance cho từng team
+  const [teamBalances, setTeamBalances] = useState<{ [teamId: string]: number }>({});
 
   const fetchInitialData = async () => {
     setIsLoading(true);
@@ -59,6 +63,7 @@ export default function Homepage() {
     setIsTeamLoading(true);
     try {
       const transactionsResponse = await api.get(`/teams/${team.id}/transactions`);
+      const teamDetails = await fetchTeamDetails(team.id);
       setAllTransactions(transactionsResponse.data || []);
       setSelectedTeam(team);
       setCurrentView("team");
@@ -84,7 +89,30 @@ export default function Homepage() {
     return new Intl.NumberFormat("vi-VN", { style: "currency", currency: "VND" }).format(amount);
   };
 
-  const calculateBalance = (income: number, expenses: number) => income - expenses;
+
+const fetchTeamDetails = async (teamId: string) => {
+  try {
+    const response = await api.get(`/teams/${teamId}/details`);
+    // Nếu response là object trả về trực tiếp từ backend, không phải { data: ... }
+    return response; // Không phải response.data
+  } catch (error) {
+    return null;
+  }
+};
+
+  // Fetch balance cho tất cả team khi danh sách teams thay đổi
+useEffect(() => {
+  const fetchBalances = async () => {
+    const balances: { [teamId: string]: number } = {};
+    const promises = teams.map(async (team) => {
+      const teamDetails = await fetchTeamDetails(team.id);
+      balances[team.id] = teamDetails && typeof teamDetails.balance !== "undefined" ? teamDetails.balance : 0;
+    });
+    await Promise.all(promises);
+    setTeamBalances(balances);
+  };
+  if (teams.length > 0) fetchBalances();
+}, [teams]);
 
   const handleBackToList = () => {
     setCurrentView("list");
@@ -117,7 +145,7 @@ export default function Homepage() {
   if (isLoading) {
     return <div className="flex h-full items-center justify-center">Đang tải danh sách nhóm...</div>;
   }
-
+  let numberOfTeamMembers = selectedTeam ? selectedTeam.members.length : 0;
   return (
     <>
       {currentView === "list" ? (
@@ -146,7 +174,8 @@ export default function Homepage() {
               <p className="text-center text-gray-500 py-8">Không tìm thấy nhóm nào hoặc bạn chưa tham gia nhóm nào.</p>
             ) : (
               filteredTeams.map((team) => {
-                const balance = calculateBalance(team.totalIncome, team.totalExpenses);
+                const balance = teamBalances[team.id] ;
+                // ...existing code...
                 return (
                   <Card
                     key={team.id}
@@ -168,7 +197,7 @@ export default function Homepage() {
                                   <div className="flex items-center gap-6 text-sm">
                                       <div className="flex items-center gap-1">
                                           <Users className="w-4 h-4 text-gray-400" />
-                                          <span className="text-gray-600">8 thành viên</span>
+                                          <span className="text-gray-600">{numberOfTeamMembers} thành viên</span>
                                       </div>
                                       <div className="flex items-center gap-1">
                                           <Calendar className="w-4 h-4 text-gray-400" />
@@ -182,7 +211,7 @@ export default function Homepage() {
                               <div
                               className={`text-2xl font-bold ${balance >= 0 ? "text-green-600" : "text-red-600"}`}
                               >
-                              {formatCurrency(balance)}
+                                {formatCurrency(balance)}
                               </div>
                           </div>
                       </div>
