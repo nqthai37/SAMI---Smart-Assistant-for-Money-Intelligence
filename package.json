@@ -1,27 +1,48 @@
 {
-  "name": "sami---smart-assistant-for-money-intelligence",
+  "name": "sami-smart-assistant",
   "version": "1.0.0",
-  "description": "",
-  "main": "test-auth-logout.js",
-  "directories": {
-    "doc": "docs",
-    "lib": "lib",
-    "test": "tests"
-  },
-  "devDependencies": {},
+  "description": "Smart Assistant for Money Intelligence - Financial Management System",
+  "main": "server.ts",
+  "type": "module",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "dev": "tsx watch --env-file=.env server.ts",
+    "start": "tsx server.ts",
+    "build": "tsc",
+    "prisma:generate": "prisma generate",
+    "prisma:migrate": "prisma migrate dev",
+    "prisma:studio": "prisma studio"
   },
-  "repository": {
-    "type": "git",
-    "url": "git+https://github.com/nqthai37/SAMI---Smart-Assistant-for-Money-Intelligence.git"
+  "keywords": [
+    "finance",
+    "money-management",
+    "nodejs",
+    "typescript",
+    "prisma"
+  ],
+  "author": "SAMI Team",
+  "license": "MIT",
+  "dependencies": {
+    "@prisma/client": "^6.14.0",
+    "@supabase/supabase-js": "^2.54.0",
+    "bcryptjs": "^3.0.2",
+    "cors": "^2.8.5",
+    "dotenv": "^17.2.1",
+    "express": "^5.1.0",
+    "jsonwebtoken": "^9.0.2",
+    "nodemailer": "^7.0.5",
+    "pg": "^8.16.3",
+    "react-hot-toast": "^2.6.0"
   },
-  "keywords": [],
-  "author": "",
-  "license": "ISC",
-  "type": "commonjs",
-  "bugs": {
-    "url": "https://github.com/nqthai37/SAMI---Smart-Assistant-for-Money-Intelligence/issues"
-  },
-  "homepage": "https://github.com/nqthai37/SAMI---Smart-Assistant-for-Money-Intelligence#readme"
+  "devDependencies": {
+    "@types/bcryptjs": "^2.4.6",
+    "@types/cors": "^2.8.19",
+    "@types/express": "^5.0.3",
+    "@types/jsonwebtoken": "^9.0.10",
+    "@types/nodemailer": "^6.4.17",
+    "nodemon": "^3.1.10",
+    "prisma": "^6.13.0",
+    "ts-node": "^10.9.2",
+    "tsx": "^4.20.3",
+    "typescript": "^5.9.2"
+  }
 }

@@ -1,27 +1,34 @@
 import type { Request, RequestHandler, Response } from 'express';
 import * as userService from '../services/userService.js';
 
-<<<<<<< HEAD
-interface AuthenticatedRequest extends Request {
-  user: {
-    id: number; // Giả sử id là number, an toàn hơn string
-=======
 // Định nghĩa kiểu Request mở rộng để có user
 interface AuthenticatedRequest extends Request {
   user?: {
     id?: number; // Chuẩn hóa sử dụng 'id'
->>>>>>> origin/pdinh
   };
 }
 
+
+export const getMyProfile = async (req: AuthenticatedRequest, res: Response): Promise<Response> => {
+  try {
+    const userId = req.user?.id; // Sửa thành req.user.id
+    if (!userId) {
+      return res.status(401).json({ message: 'Unauthorized' });
+    }
+
+    const user = await userService.getUserProfile(userId);
+    return res.json(user);
+  } catch (error: any) {
+    console.error('Error fetching profile:', error);
+    return res.status(error.status || 500).json({ message: error.message || 'Server error' });
+  }
+}
 // search teams by keyword
-const searchTeams: RequestHandler = async (req, res) => {
+export const searchTeams: RequestHandler = async (req, res) => {
   const userId = (req as AuthenticatedRequest).user.id;
   const { keyword } = req.body;
   try {
-<<<<<<< HEAD
     const teams = await userService.searchTeams(userId, keyword);
-=======
     const userId = req.user?.id; // Sửa thành req.user.id
     if (!userId) {
       return res.status(401).json({ message: 'Unauthorized' });
@@ -102,33 +109,7 @@ export const showTeamList = async (req: AuthenticatedRequest, res: Response): Pr
   }
 };
 
-/**
- * @desc Search Teams
- * @route GET /api/user/workspaces/search
- * @access Private
- */
-export const searchTeam = async (req: Request, res: Response): Promise<Response> => {
-  try {
-    const { query } = req.query;
-    const teams = await userService.searchTeam(query as string);
->>>>>>> origin/pdinh
-    return res.json(teams);
-  } catch (error) {
-    console.error('Error searching teams:', error);
-    return res.status(500).json({ message: 'Server error' });
-  }
-};
 
-<<<<<<< HEAD
-export{
-  searchTeams,
-}
-=======
-/**
- * @desc Get notifications
- * @route GET /api/user/notifications
- * @access Private
- */
 export const getNotification = async (req: AuthenticatedRequest, res: Response): Promise<Response> => {
   try {
     const userId = req.user?.id; // Sửa thành req.user.id
@@ -149,4 +130,3 @@ export const getNotification = async (req: AuthenticatedRequest, res: Response):
     return res.status(500).json({ message: 'Server error' });
   }
 };
->>>>>>> origin/pdinh

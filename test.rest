@@ -113,7 +113,7 @@ Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6OCwiaWF0IjoxN
 ### Test get team details
 GET http://localhost:8383/api/teams/13/details
 Content-Type: application/json
-Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6OCwiaWF0IjoxNzU1Njg2NjQzLCJleHAiOjE3NTU2OTAyNDN9.tTEYIgX4kGdMlKUDn_1lPnouudVRm-TP5k3UDKh8HZM
+Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6OCwiaWF0IjoxNzU1NzQ2OTM5LCJleHAiOjE3NTU3NTA1Mzl9.jzmRH5H7nmpSI7f9BuquV713RCQubgkF17pFP0W9B1Y
 
 {
   "teamId": 13
@@ -122,7 +122,7 @@ Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6OCwiaWF0IjoxN
 ### test search teams
 POST http://localhost:8383/api/user/search-teams
 Content-Type: application/json
-Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6OCwiaWF0IjoxNzU1NjkxMjk0LCJleHAiOjE3NTU2OTQ4OTR9.mfxKoQ9KhfKXmSYR0FvuCUSUgEAu_UcX_qHAk1t2584
+Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6OCwiaWF0IjoxNzU1NzQ2OTM5LCJleHAiOjE3NTU3NTA1Mzl9.jzmRH5H7nmpSI7f9BuquV713RCQubgkF17pFP0W9B1Y
 
 {
   "keyword": "Nhóm"
