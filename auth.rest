@@ -34,7 +34,7 @@ Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6MTIsImlhdCI6M
 ###
 PATCH http://localhost:8383/api/user/updateprofile
 Content-Type: application/json
-Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6MTEsImlhdCI6MTc1NTQwMzk1NCwiZXhwIjoxNzU1NDA3NTU0fQ.XnE3HGDSvWndhuU1jPFOLAqYa5fyYa-KquVELUgKi0s
+Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6MTUsImlhdCI6MTc1NTc0OTk1NSwiZXhwIjoxNzU1NzUzNTU1fQ.nThg0qpVNMYzwDkILfK6DiXAB9PcaWlCdM4ksfQoOvc
 
 {
   "firstName": "NewFirstName",
@@ -48,14 +48,14 @@ POST http://localhost:8383/api/auth/login
 Content-Type: application/json
 
 {
-  "email": "pdinh@gmail.com",
-  "password": "testpassword"
+  "email": "tpdinh23@clc.fitus.edu.vn",
+  "password": "123456789"
 }
 
 ### Lấy danh sách team của người dùng (có phân trang)
 # Bạn có thể thay đổi giá trị `page` và `limit` để kiểm tra phân trang.
 GET http://localhost:8383/api/user/teams?page=1&limit=5
-Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6OCwiaWF0IjoxNzU1NDA1ODE2LCJleHAiOjE3NTU0MDk0MTZ9.ITn28ofpMhzxIawMHyMXwBQkSOg-MgwE--bDcAHg0eE
+Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6MTUsImlhdCI6MTc1NTc0OTk1NSwiZXhwIjoxNzU1NzUzNTU1fQ.nThg0qpVNMYzwDkILfK6DiXAB9PcaWlCdM4ksfQoOvc
 
 ###
 ### Lấy trang thứ hai của danh sách team

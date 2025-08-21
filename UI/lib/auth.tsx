@@ -1,19 +1,12 @@
-import { createContext, useContext, useState, useEffect, useMemo } from "react";
+"use client"
+
+import React, { createContext, useContext, useState, useEffect, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import { api } from "./api"; // 1. Import api helper của bạn
+import { getMyProfile, updateMyProfile, UpdateProfilePayload } from "@/services/user.api";
+import type { User } from "@/types/user"; // Đảm bảo đường dẫn này đúng
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL;
-
-type User = {
-  id: number;
-  email: string;
-  firstName?: string;
-  lastName?: string;
-  phoneNumber?: string; // Thêm vào
-  dateOfBirth?: string; // Thêm vào
-  gender?: "Male" | "Female" | "Other"; // Thêm vào
-  avatar?: string;
-};
 
 // ✅ BƯỚC 2: CẬP NHẬT LẠI TYPE CỦA CONTEXT
 // Thêm hàm updateUser vào
@@ -95,21 +88,29 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
-  const updateUser = async (profileData: Partial<User>): Promise<boolean> => {
+  /**
+   * Hàm này sẽ được gọi từ component ProfileSettings.
+   * Nó gọi API, sau đó cập nhật state 'user' trên toàn ứng dụng.
+   */
+  const updateUser = async (payload: UpdateProfilePayload) => {
     try {
-      // Gọi API để cập nhật profile
-      const response = await api.patch("/user/profile", profileData);
+      // Gọi hàm API đã tạo trong user.api.ts
+      const response = await updateMyProfile(payload);
 
+      // Backend của bạn trả về { message: '...', user: updatedUser }
+      // Cập nhật state 'user' trong context với dữ liệu mới nhất
       if (response && response.user) {
-        // Cập nhật lại user trong state và localStorage
-        setUser(response.user);
-        localStorage.setItem("sami_user", JSON.stringify(response.user));
-        return true;
+        setUser(prevUser => {
+          if (!prevUser) return response.user; // Trường hợp user chưa có
+          return { ...prevUser, ...response.user };
+        });
       }
-      return false;
+      
+      // Trả về true để component biết là đã thành công
+      return true;
     } catch (error) {
-      console.error("Auth context error updating user:", error);
-      // Ném lỗi ra để component có thể bắt và hiển thị
+      console.error("Lỗi khi cập nhật user trong context:", error);
+      // Ném lỗi ra ngoài để component có thể bắt và hiển thị thông báo (ví dụ: qua toast)
       throw error;
     }
   };

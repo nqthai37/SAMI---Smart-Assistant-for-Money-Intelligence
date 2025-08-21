@@ -35,6 +35,27 @@ export const updateUserProfile = async (
     gender?: string;
   }
 ) => {
+  // THÊM ĐOẠN CODE NÀY
+  // Kiểm tra xem email mới (nếu có) đã được người dùng khác sử dụng chưa
+  if (data.email) {
+    const existingUser = await prisma.user.findFirst({
+      where: {
+        email: data.email,
+        id: {
+          not: userId, // Quan trọng: Loại trừ chính người dùng đang cập nhật
+        },
+      },
+    });
+
+    if (existingUser) {
+      // Nếu email đã tồn tại, tạo một lỗi rõ ràng để controller có thể bắt
+      const error: any = new Error('Địa chỉ email này đã được sử dụng.');
+      error.status = 409; // 409 Conflict: Mã lỗi HTTP cho biết có sự xung đột
+      throw error;
+    }
+  }
+  // KẾT THÚC ĐOẠN CODE THÊM
+
   // Chuyển đổi dateOfBirth sang đối tượng Date nếu nó là string
   if (data.dateOfBirth && typeof data.dateOfBirth === 'string') {
     data.dateOfBirth = new Date(data.dateOfBirth);

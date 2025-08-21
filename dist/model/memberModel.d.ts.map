@@ -1,1 +1,0 @@
-{"version":3,"file":"memberModel.d.ts","sourceRoot":"","sources":["../../model/memberModel.ts"],"names":[],"mappings":"AAGA,UAAU,MAAM;IACd,MAAM,EAAE,MAAM,CAAC;IACf,MAAM,EAAE,MAAM,CAAC;IACf,IAAI,EAAE,OAAO,GAAG,OAAO,GAAG,QAAQ,CAAC;IACnC,QAAQ,EAAE,IAAI,CAAC;CAChB;AAID,eAAO,MAAM,WAAW;8BACU,MAAM,UAAU,MAAM;oBAIhC,MAAM;;CAO7B,CAAC"}
