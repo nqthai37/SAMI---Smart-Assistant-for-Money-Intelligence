@@ -24,7 +24,6 @@ import { MemberView } from "@/features/teams/team-views/member-view";
 import { CreateTeamDialog } from "@/features/teams/components/create-team-dialog";
 import { api } from "@/lib/api";
 
-import {getTeamDetails} from "../../../controllers/teamController";
 
 export default function Homepage() {
   const [selectedTeam, setSelectedTeam] = useState<Team | null>(null);
@@ -38,15 +37,22 @@ export default function Homepage() {
   const [allTransactions, setAllTransactions] = useState<Transaction[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isTeamLoading, setIsTeamLoading] = useState(false);
-  // Thêm state lưu balance cho từng team
-  const [teamBalances, setTeamBalances] = useState<{ [teamId: string]: number }>({});
 
   const fetchInitialData = async () => {
     setIsLoading(true);
     try {
+      console.log('🚀 Fetching initial teams data...');
       const teamsResponse = await api.get("/user/teams");
-      setTeams(teamsResponse.data || []);
+      console.log('📋 Teams response:', teamsResponse);
+      console.log('📋 Teams data:', teamsResponse.data);
+      
+      const teamsData = teamsResponse.data || [];  // data nằm trong response.data.data
+      console.log('📋 Setting teams:', teamsData);
+      setTeams(teamsData);
+      
+      // Không cần fetch balance riêng nữa vì đã có sẵn
     } catch (error: any) {
+      console.error('❌ Error fetching teams:', error);
       toast.error("Không thể tải danh sách nhóm: " + error.message);
     } finally {
       setIsLoading(false);
@@ -63,7 +69,6 @@ export default function Homepage() {
     setIsTeamLoading(true);
     try {
       const transactionsResponse = await api.get(`/teams/${team.id}/transactions`);
-      const teamDetails = await fetchTeamDetails(team.id);
       setAllTransactions(transactionsResponse.data || []);
       setSelectedTeam(team);
       setCurrentView("team");
@@ -88,31 +93,6 @@ export default function Homepage() {
   const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat("vi-VN", { style: "currency", currency: "VND" }).format(amount);
   };
-
-
-const fetchTeamDetails = async (teamId: string) => {
-  try {
-    const response = await api.get(`/teams/${teamId}/details`);
-    // Nếu response là object trả về trực tiếp từ backend, không phải { data: ... }
-    return response; // Không phải response.data
-  } catch (error) {
-    return null;
-  }
-};
-
-  // Fetch balance cho tất cả team khi danh sách teams thay đổi
-useEffect(() => {
-  const fetchBalances = async () => {
-    const balances: { [teamId: string]: number } = {};
-    const promises = teams.map(async (team) => {
-      const teamDetails = await fetchTeamDetails(team.id);
-      balances[team.id] = teamDetails && typeof teamDetails.balance !== "undefined" ? teamDetails.balance : 0;
-    });
-    await Promise.all(promises);
-    setTeamBalances(balances);
-  };
-  if (teams.length > 0) fetchBalances();
-}, [teams]);
 
   const handleBackToList = () => {
     setCurrentView("list");
@@ -145,7 +125,6 @@ useEffect(() => {
   if (isLoading) {
     return <div className="flex h-full items-center justify-center">Đang tải danh sách nhóm...</div>;
   }
-  let numberOfTeamMembers = selectedTeam ? selectedTeam.members.length : 0;
   return (
     <>
       {currentView === "list" ? (
@@ -174,8 +153,17 @@ useEffect(() => {
               <p className="text-center text-gray-500 py-8">Không tìm thấy nhóm nào hoặc bạn chưa tham gia nhóm nào.</p>
             ) : (
               filteredTeams.map((team) => {
-                const balance = teamBalances[team.id] ;
-                // ...existing code...
+                // Sử dụng balance có sẵn từ API
+                const balance = team.balance || 0;
+                const numberOfTeamMembers = team.members?.length || 0;
+                
+                console.log(`🎨 Rendering team ${team.teamName}:`, {
+                  teamId: team.id,
+                  balance,
+                  totalIncome: team.totalIncome,
+                  totalExpenses: team.totalExpenses,
+                });
+                
                 return (
                   <Card
                     key={team.id}
@@ -185,15 +173,20 @@ useEffect(() => {
                     <CardContent className="p-6">
                       <div className="flex items-start justify-between">
                           <div className="flex items-start gap-4 flex-1">
-                              <div className={`w-4 h-4 rounded-full ${team.color} mt-1`}></div>
+                              {/* <div className={`w-4 h-4 rounded-full ${team.color} mt-1`}></div> */}
                               <div className="flex-1">
                                   <div className="flex items-center gap-3 mb-2">
-                                      <h3 className="font-semibold text-gray-900">{team.teamName}</h3>
-                                      <Badge variant="secondary" className="text-xs">
+                                      <h3
+                                        className="font-semibold text-gray-900 truncate max-w-[220px]"
+                                        title={team.teamName}
+                                      >
+                                        {team.teamName}
+                                      </h3>
+                                      <Badge variant="secondary" className="text-xs flex-shrink-0">
                                       {team.currentUserRole}
                                       </Badge>
                                   </div>
-                                  {team.description && <p className="text-sm text-gray-600 mb-3">{team.description}</p>}
+                                  {/* {team.description && <p className="text-sm text-gray-600 mb-3">{team.description}</p>} */}
                                   <div className="flex items-center gap-6 text-sm">
                                       <div className="flex items-center gap-1">
                                           <Users className="w-4 h-4 text-gray-400" />
@@ -201,7 +194,8 @@ useEffect(() => {
                                       </div>
                                       <div className="flex items-center gap-1">
                                           <Calendar className="w-4 h-4 text-gray-400" />
-                                          <span className="text-gray-600">Cập nhật {team.updatedAt}</span>
+                                          {/* Sửa lại để format ngày tháng */}
+                                          <span className="text-gray-600">Cập nhật {new Date(team.updatedAt).toLocaleDateString('vi-VN')}</span>
                                       </div>
                                   </div>
                               </div>

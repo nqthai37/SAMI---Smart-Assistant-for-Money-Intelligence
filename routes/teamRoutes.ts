@@ -19,7 +19,7 @@ router.delete('/:id', TeamController.deleteTeam);
 router.post('/:id/send-invite', authMiddleware, TeamController.sendInviteEmail);
 router.post('/:id/send-invite/response', authMiddleware, TeamController.handleInviteResponse);
 
-router .get('/:id/details', authMiddleware, TeamController.getTeamDetails);
+router.get('/:id/details', authMiddleware, TeamController.getTeamDetails);
 
 // GET /api/teams/:teamId/transactions - Lấy danh sách giao dịch của một team
 router.get('/:teamId/transactions', TransactionController.getTeamTransactions);

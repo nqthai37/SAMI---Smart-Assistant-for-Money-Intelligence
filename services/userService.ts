@@ -25,7 +25,7 @@ export const searchTeams = async (userId: number, keyword: string) => {
 
 // Get user profile
 export const getUserProfile = async (userId: number) => {
-  const user = await UserModel.findByUserID(userId);
+  const user = await UserModel.findByID(userId);
   if (!user) return null;
 
   // Return a copy of the user object without the passwordHash
@@ -77,41 +77,77 @@ export const showTeamList = async (
   const { page = 1, limit = 10 } = options;
   const skip = (page - 1) * limit;
 
-  // Tìm tất cả các team mà người dùng là chủ sở hữu HOẶC là thành viên
+  // Lấy teams với transactions để tính balance
   const teams = await prisma.teams.findMany({
     where: {
       OR: [
-        {
-          ownerId: userId, // Người dùng là chủ sở hữu
-        },
+        { ownerId: userId },
         {
           teamMembers: {
-            some: {
-              userId: userId, // Người dùng là thành viên trong team
-            },
+            some: { userId: userId },
           },
         },
       ],
     },
+    include: {
+      transactions: {
+        select: {
+          amount: true,
+          type: true,
+        },
+      },
+      teamMembers: {
+        where: { userId: userId },
+        select: { role: true },
+      },
+      _count: {
+        select: { teamMembers: true },
+      },
+    },
     skip: skip,
     take: limit,
-    orderBy: {
-      createdAt: 'desc', // Sắp xếp theo team mới nhất
-    },
+    orderBy: { createdAt: 'desc' },
   });
 
-  // Lấy tổng số team để tính toán phân trang ở phía client
+  // Tính balance cho từng team
+  const teamsWithBalance = teams.map(team => {
+    const totalIncome = team.transactions
+      .filter(t => t.type === 'income')
+      .reduce((sum, t) => sum + Number(t.amount), 0);
+    
+    const totalExpenses = team.transactions
+      .filter(t => t.type === 'expense')
+      .reduce((sum, t) => sum + Number(t.amount), 0);
+    
+    const balance = totalIncome - totalExpenses;
+    
+    const currentUserRole = team.teamMembers[0]?.role || 'member';
+    
+    return {
+      id: team.id,
+      teamName: team.teamName,
+      // description: team.description,
+      // color: team.color || 'bg-blue-500',
+      createdAt: team.createdAt,
+      updatedAt: team.updatedAt,
+      totalIncome,
+      totalExpenses,
+      balance,
+      currentUserRole,
+      currentUserMode: currentUserRole, // Assuming mode is same as role
+      members: { length: team._count.teamMembers },
+    };
+  });
+
+  
+
   const totalTeams = await prisma.teams.count({
     where: {
       OR: [
-        {
-          ownerId: userId,
-        },
+        { ownerId: userId },
         {
           teamMembers: {
-            some: {
-              userId: userId,
-            },
+            some: { userId: userId },
           },
         },
       ],
@@ -119,7 +155,7 @@ export const showTeamList = async (
   });
 
   return {
-    data: teams,
+    data: teamsWithBalance,
     pagination: {
       page,
       limit,
@@ -155,7 +191,7 @@ export const changePassword = async (
   oldPassword: string,
   newPassword: string
 ) => {
-  const user = await UserModel.findByUserID(userId);
+  const user = await UserModel.findByID(userId);
   if (!user) throw new Error('User not found');
   
   // Verify old password by comparing with hashed password

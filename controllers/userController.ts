@@ -25,22 +25,21 @@ export const getMyProfile = async (req: AuthenticatedRequest, res: Response): Pr
 }
 // search teams by keyword
 export const searchTeams: RequestHandler = async (req, res) => {
-  const userId = (req as AuthenticatedRequest).user.id;
-  const { keyword } = req.body;
   try {
-    const teams = await userService.searchTeams(userId, keyword);
-    const userId = req.user?.id; // Sửa thành req.user.id
+    const userId = (req as AuthenticatedRequest).user?.id;
+    const { keyword } = req.body;
+    
     if (!userId) {
       return res.status(401).json({ message: 'Unauthorized' });
     }
 
-    const user = await userService.getUserProfile(userId);
-    return res.json(user);
+    const teams = await userService.searchTeams(userId, keyword);
+    return res.json(teams);
   } catch (error: any) {
-    console.error('Error fetching profile:', error);
+    console.error('Error searching teams:', error);
     return res.status(error.status || 500).json({ message: error.message || 'Server error' });
   }
-}
+};
 
 
 /**

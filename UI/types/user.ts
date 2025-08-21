@@ -36,21 +36,16 @@ export interface Transaction {
 }
 
 export interface Team {
-  id: string
-  name: string
-  description?: string
-  color: string
-  members: TeamMember[]
-  expenses: Transaction[]
-  totalExpenses: number
-  totalIncome: number
-  monthlyBudget?: number
-  createdAt: string
-  updatedAt: string
-  currentUserRole: UserRole
-  currentUserMode: UserMode
-  currentUserEmail?: string
-  canMembersViewReports?: boolean // New property
-  incomeTarget?: number // New property
-  budgetLimit?: number // New property
+  id: number; // Sửa từ string thành number
+  teamName: string;
+  description?: string; // Giữ optional
+  color?: string; // Sửa thành optional
+  members: { length: number };
+  totalExpenses: number;
+  totalIncome: number;
+  balance: number;
+  createdAt: string;
+  updatedAt: string;
+  currentUserRole: string; // Hoặc UserRole nếu đã định nghĩa
+  currentUserMode: string; // Hoặc UserMode nếu đã định nghĩa
 }

@@ -1,7 +1,7 @@
 import { createContext, useContext, useState, useEffect, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import { api } from "./api"; // 1. Import api helper của bạn
-
+import { getMyProfile, updateMyProfile, UpdateProfilePayload } from "@/services/user.api";
 const API_URL = process.env.NEXT_PUBLIC_API_URL;
 
 type User = {
@@ -97,19 +97,24 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const updateUser = async (profileData: Partial<User>): Promise<boolean> => {
     try {
-      // Gọi API để cập nhật profile
-      const response = await api.patch("/user/profile", profileData);
+      // Fix: use profileData instead of payload
+      const response = await updateMyProfile(profileData);
 
+      // Backend response: { message: '...', user: updatedUser }
+      // Update the 'user' state in context with the latest data
       if (response && response.user) {
-        // Cập nhật lại user trong state và localStorage
-        setUser(response.user);
-        localStorage.setItem("sami_user", JSON.stringify(response.user));
-        return true;
+        setUser(prevUser => {
+          if (!prevUser) return response.user;
+          return { ...prevUser, ...response.user };
+        });
+        
+        // Also update localStorage
+        localStorage.setItem("sami_user", JSON.stringify({ ...user, ...response.user }));
       }
-      return false;
+      
+      return true;
     } catch (error) {
-      console.error("Auth context error updating user:", error);
-      // Ném lỗi ra để component có thể bắt và hiển thị
+      console.error("Lỗi khi cập nhật user trong context:", error);
       throw error;
     }
   };
