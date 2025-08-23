@@ -602,6 +602,8 @@ export function MemberView({
     return "Chọn thời gian"
   }
 
+  console.log("debug", team)
+
   return (
     <div className="p-6 max-w-6xl mx-auto">
       {/* Header with Mode Switcher */}

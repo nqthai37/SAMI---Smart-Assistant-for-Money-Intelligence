@@ -160,7 +160,7 @@ export default function Homepage() {
   };
 
   const renderTeamView = () => {
-    if (!selectedTeam) return null;
+    if (!selectedTeam || !selectedTeam.currentUserMode) return null; 
     if (isTeamLoading)
       return <div className="p-6 text-center">Đang tải dữ liệu nhóm...</div>;
 
@@ -169,14 +169,16 @@ export default function Homepage() {
       allTransactions,
       onModeChange: (newMode: UserMode) => {
         if (!selectedTeam) return;
-        const updatedMode = newMode.slice(0, 1).toUpperCase() + newMode.slice(1) as UserMode;
+        const updatedMode = (newMode.charAt(0).toUpperCase() + newMode.slice(1)) as UserMode;
         selectTeam({ ...selectedTeam, currentUserMode: updatedMode });
       },
     };
 
     switch (selectedTeam.currentUserMode) {
       case "Owner":
+      case "owner":
       case "Admin":
+      case "admin":
         return (
           <AdminOwnerView
             {...commonProps}
@@ -186,6 +188,7 @@ export default function Homepage() {
           />
         );
       case "Deputy":
+      case "deputy":
         return <DeputyView {...commonProps} />;
       default:
         return (
