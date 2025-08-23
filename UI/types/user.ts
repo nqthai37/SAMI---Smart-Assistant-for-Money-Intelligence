@@ -35,17 +35,34 @@ export interface Transaction {
   requestedAt?: string
 }
 
+// Dùng cho danh sách team tóm tắt
 export interface Team {
-  id: number; // Sửa từ string thành number
+  id: number;
   teamName: string;
-  description?: string; // Giữ optional
-  color?: string; // Sửa thành optional
-  members: { length: number };
+  createdAt: string;
+  updatedAt: string;
+  description?: string;
+  color?: string;
+  
+  // SỬA Ở ĐÂY: Thêm dấu '?' để các trường này là optional
+  // Điều này sẽ giúp danh sách team hiển thị lại ngay lập tức
+  members?: { length: number };
+  totalExpenses?: number;
+  totalIncome?: number;
+  balance?: number;
+  currentUserRole?: string;
+  currentUserMode?: string;
+}
+
+// Dùng cho trang chi tiết của một team (sẽ cần sau này)
+export interface TeamDetails extends Team {
+  name?:string;
+  // Khi xem chi tiết, chúng ta yêu cầu phải có danh sách thành viên đầy đủ
+  members: TeamMember[]; 
+  // Và các trường này cũng là bắt buộc
   totalExpenses: number;
   totalIncome: number;
   balance: number;
-  createdAt: string;
-  updatedAt: string;
-  currentUserRole: string; // Hoặc UserRole nếu đã định nghĩa
-  currentUserMode: string; // Hoặc UserMode nếu đã định nghĩa
+  currentUserRole: UserRole; // Đảm bảo đây là UserRole, không phải string
+  currentUserMode: UserMode; // THÊM DÒNG NÀY
 }

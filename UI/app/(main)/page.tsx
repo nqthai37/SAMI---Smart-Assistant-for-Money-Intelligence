@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react";
+import React, { useState, useEffect } from "react"; // SỬA: Import React explicit và thêm React type
 import {
   Search,
   Plus,
@@ -14,7 +14,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { useAuth } from "@/lib/auth";
 import { toast } from "sonner";
-import type { Team, UserMode, Transaction } from "@/types/user";
+import type { Team, TeamDetails, UserMode, Transaction } from "@/types/user";
 import { useRouter } from "next/navigation";
 
 // Import the actual view and dialog components
@@ -26,7 +26,7 @@ import { api } from "@/lib/api";
 
 
 export default function Homepage() {
-  const [selectedTeam, setSelectedTeam] = useState<Team | null>(null);
+  const [selectedTeam, setSelectedTeam] = useState<TeamDetails | null>(null);
   const [currentView, setCurrentView] = useState<"list" | "team">("list");
   const [showCreateTeamDialog, setShowCreateTeamDialog] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
@@ -38,16 +38,20 @@ export default function Homepage() {
   const [isLoading, setIsLoading] = useState(true);
   const [isTeamLoading, setIsTeamLoading] = useState(false);
 
+  useEffect(() => {
+     console.log(selectedTeam)
+  }, [selectedTeam])
+
   const fetchInitialData = async () => {
     setIsLoading(true);
     try {
-      console.log('🚀 Fetching initial teams data...');
+      // console.log('🚀 Fetching initial teams data...');
       const teamsResponse = await api.get("/user/teams");
-      console.log('📋 Teams response:', teamsResponse);
-      console.log('📋 Teams data:', teamsResponse.data);
+      // console.log('📋 Teams response:', teamsResponse);
+      // console.log('📋 Teams data:', teamsResponse.data);
       
       const teamsData = teamsResponse.data || [];  // data nằm trong response.data.data
-      console.log('📋 Setting teams:', teamsData);
+      // console.log('📋 Setting teams:', teamsData);
       setTeams(teamsData);
       
       // Không cần fetch balance riêng nữa vì đã có sẵn
@@ -65,15 +69,31 @@ export default function Homepage() {
     }
   }, [user]);
 
-  const handleTeamClick = async (team: Team) => {
+  const handleTeamClick = async (team: Team) => { // SỬA: Thêm type cho parameter
     setIsTeamLoading(true);
     try {
-      const transactionsResponse = await api.get(`/teams/${team.id}/transactions`);
-      setAllTransactions(transactionsResponse.data || []);
-      setSelectedTeam(team);
+      const [detailsResponse, transactionsResponse] = await Promise.allSettled([
+        api.get(`/teams/${team.id}/details`),
+        api.get(`/teams/${team.id}/transactions`),
+      ]);
+       console.log(transactionsResponse?.value)
+
+      const transactions = transactionsResponse?.value?.data || [];
+      setAllTransactions(transactions);
+
+      // THÊM currentUserMode VÀO ĐÂY
+      const fullTeamDetails = { 
+        ...team, 
+        ...detailsResponse?.value,
+        // Khởi tạo currentUserMode = actual role của user trong team này
+        currentUserMode: 
+        ((team?.currentUserRole?.slice(0, 1)?.toUpperCase() || '') + (team?.currentUserRole?.slice(1) || '')) as UserMode
+      };
+      setSelectedTeam(fullTeamDetails);
+
       setCurrentView("team");
     } catch (error: any) {
-      toast.error("Không thể tải dữ liệu nhóm: " + error.message);
+      toast.error("Không thể tải dữ liệu nhóm: " + (error.response?.data?.message || error.message));
     } finally {
       setIsTeamLoading(false);
     }
@@ -99,9 +119,38 @@ export default function Homepage() {
     setSelectedTeam(null);
   };
 
-  const filteredTeams = teams.filter((team) =>
+  const filteredTeams = teams.filter((team: Team) => // SỬA: Thêm type cho parameter
     team.teamName && team.teamName.toLowerCase().includes(searchTerm.toLowerCase())
   );
+
+  // SỬA: Thay đổi type parameter cho phù hợp với AdminOwnerView
+  const handleUpdateTeam = (updatedTeam: Team) => { // SỬA: Đổi type từ Partial<TeamDetails> thành Team
+    if (!selectedTeam) return;
+    setSelectedTeam((prev: TeamDetails | null) => ({ // SỬA: Thêm type cho prev
+      ...prev!, 
+      ...updatedTeam 
+    }));
+    // Gọi API để lưu thay đổi ở đây, ví dụ:
+    // api.patch(`/teams/${selectedTeam.id}`, updatedData);
+    toast.success("Thông tin nhóm đã được cập nhật.");
+  };
+
+  const handleUpdateTransaction = (transaction: Transaction) => {
+    setAllTransactions((prev: Transaction[]) => { // SỬA: Thêm type cho prev
+      const index = prev.findIndex((t: Transaction) => t.id === transaction.id); // SỬA: Thêm type cho t
+      if (index > -1) {
+        const newTrans = [...prev];
+        newTrans[index] = transaction;
+        return newTrans;
+      }
+      return [transaction, ...prev]; // Thêm mới
+    });
+  };
+
+  const handleDeleteTransaction = (transactionId: string) => {
+    setAllTransactions((prev: Transaction[]) => prev.filter((t: Transaction) => t.id !== transactionId)); // SỬA: Thêm type cho prev và t
+    // Gọi API để xóa ở đây
+  };
 
   const renderTeamView = () => {
     if (!selectedTeam) return null;
@@ -110,16 +159,27 @@ export default function Homepage() {
     const commonProps = {
       team: selectedTeam,
       allTransactions: allTransactions,
-      onModeChange: () => {},
+      onModeChange: (newMode: UserMode) => {
+        setSelectedTeam((prev: TeamDetails | null) => ({ ...prev!, currentUserMode: newMode.slice(0, 1).toUpperCase() + newMode.slice(1) as UserMode })); // SỬA: Thêm type cho prev
+      },
     };
 
-    if (selectedTeam.currentUserMode === "Owner" || selectedTeam.currentUserMode === "Admin") {
-      return <AdminOwnerView {...commonProps} onUpdateTeam={() => {}} onUpdateTransaction={() => {}} onDeleteTransaction={() => {}} />;
+    if (selectedTeam?.currentUserMode === "Owner" || selectedTeam?.currentUserMode === "Admin") {
+      return <AdminOwnerView 
+        {...commonProps} 
+        onUpdateTeam={handleUpdateTeam} 
+        onUpdateTransaction={handleUpdateTransaction} 
+        onDeleteTransaction={handleDeleteTransaction} 
+      />;
     }
-    if (selectedTeam.currentUserMode === "Deputy") {
-      return <DeputyView {...commonProps} />;
+    if (selectedTeam?.currentUserMode === "Deputy") {
+      return <DeputyView {...commonProps} />; // DeputyView cũng cần các hàm update tương tự
     }
-    return <MemberView {...commonProps} />;
+    return <MemberView 
+      {...commonProps} 
+      onUpdateTransaction={handleUpdateTransaction} 
+      onDeleteTransaction={handleDeleteTransaction} 
+    />;
   };
   
   if (isLoading) {
@@ -139,7 +199,7 @@ export default function Homepage() {
                     placeholder="Tìm kiếm nhóm..."
                     className="pl-10 bg-white border-gray-300"
                     value={searchTerm}
-                    onChange={(e) => setSearchTerm(e.target.value)}
+                    onChange={(e: React.ChangeEvent<HTMLInputElement>) => setSearchTerm(e.target.value)} // SỬA: Thêm type cho e
                     />
                 </div>
                 <Button size="sm" onClick={() => setShowCreateTeamDialog(true)}>
@@ -152,17 +212,17 @@ export default function Homepage() {
             {filteredTeams.length === 0 ? (
               <p className="text-center text-gray-500 py-8">Không tìm thấy nhóm nào hoặc bạn chưa tham gia nhóm nào.</p>
             ) : (
-              filteredTeams.map((team) => {
+              filteredTeams.map((team: Team) => { // SỬA: Thêm type cho team
                 // Sử dụng balance có sẵn từ API
                 const balance = team.balance || 0;
                 const numberOfTeamMembers = team.members?.length || 0;
                 
-                console.log(`🎨 Rendering team ${team.teamName}:`, {
-                  teamId: team.id,
-                  balance,
-                  totalIncome: team.totalIncome,
-                  totalExpenses: team.totalExpenses,
-                });
+                // console.log(`🎨 Rendering team ${team.teamName}:`, {
+                //   teamId: team.id,
+                //   balance,
+                //   totalIncome: team.totalIncome,
+                //   totalExpenses: team.totalExpenses,
+                // });
                 
                 return (
                   <Card
@@ -182,8 +242,9 @@ export default function Homepage() {
                                       >
                                         {team.teamName}
                                       </h3>
+                                      {/* SỬA: Sử dụng children prop cho Badge */}
                                       <Badge variant="secondary" className="text-xs flex-shrink-0">
-                                      {team.currentUserRole}
+                                        {team.currentUserRole}
                                       </Badge>
                                   </div>
                                   {/* {team.description && <p className="text-sm text-gray-600 mb-3">{team.description}</p>} */}

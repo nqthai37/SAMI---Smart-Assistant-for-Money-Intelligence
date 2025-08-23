@@ -12,30 +12,17 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { RoleSwitcher } from "../components/role-switcher"
-import type { Team, UserRole } from "../../../types/user"
+import { useAuth } from "@/lib/auth"; // Import hook useAuth
+import type { TeamDetails, TeamMember, UserRole } from "../../../types/user"; // Import type chi tiết
 
 interface DeputyViewProps {
-  team: Team
-  onModeChange: (mode: any) => void
-}
-
-interface TeamMember {
-  id: string
-  name: string
-  email: string
-  role: UserRole
-  avatar: string
-  status: "online" | "offline"
-  joinedAt: string
-}
-
-// Define a type for category with icon
-interface CategoryItem {
-  name: string
-  icon: string
+  team: TeamDetails; // Dùng type chi tiết
+  onModeChange: (mode: any) => void;
 }
 
 export function DeputyView({ team, onModeChange }: DeputyViewProps) {
+  const { user } = useAuth(); // Lấy thông tin user đang đăng nhập
+
   const [showAddMemberDialog, setShowAddMemberDialog] = useState(false)
   const [showKickMemberDialog, setShowKickMemberDialog] = useState(false)
   const [showRenameDialog, setShowRenameDialog] = useState(false)
@@ -45,7 +32,7 @@ export function DeputyView({ team, onModeChange }: DeputyViewProps) {
   const [selectedMember, setSelectedMember] = useState<TeamMember | null>(null)
   const [selectedMemberForEdit, setSelectedMemberForEdit] = useState<TeamMember | null>(null)
   const [newMemberEmail, setNewMemberEmail] = useState("")
-  const [newWorkspaceName, setNewWorkspaceName] = useState(team.name)
+  const [newWorkspaceName, setNewWorkspaceName] = useState(team.teamName); // Sửa team.name -> team.teamName
   const [selectedCurrency, setSelectedCurrency] = useState("VND")
   const [categories, setCategories] = useState<CategoryItem[]>([
     { name: "Ăn uống", icon: "🍽️" },
@@ -59,54 +46,9 @@ export function DeputyView({ team, onModeChange }: DeputyViewProps) {
   const [newCategoryIcon, setNewCategoryIcon] = useState("")
   const [newRole, setNewRole] = useState<UserRole>("Member")
 
-  // Sample team members data
-  const teamMembers: TeamMember[] = [
-    {
-      id: "1",
-      name: "Phùng Đình",
-      email: "phung@example.com",
-      role: "Owner",
-      avatar: "PĐ",
-      status: "online",
-      joinedAt: "2024-01-15",
-    },
-    {
-      id: "2",
-      name: "Nguyễn Văn A",
-      email: "nguyen@example.com",
-      role: "Admin",
-      avatar: "NA",
-      status: "offline",
-      joinedAt: "2024-02-01",
-    },
-    {
-      id: "3",
-      name: "Trần Thị B",
-      email: "tran@example.com",
-      role: "Deputy",
-      avatar: "TB",
-      status: "online",
-      joinedAt: "2024-03-01",
-    },
-    {
-      id: "4",
-      name: "Lê Văn C",
-      email: "le@example.com",
-      role: "Member",
-      avatar: "LC",
-      status: "offline",
-      joinedAt: "2024-04-01",
-    },
-    {
-      id: "5",
-      name: "Hoàng E",
-      email: "hoang@example.com",
-      role: "Member",
-      avatar: "HE",
-      status: "online",
-      joinedAt: "2024-05-01",
-    },
-  ]
+  // XÓA DỮ LIỆU GIẢ - DÙNG DỮ LIỆU TỪ PROPS
+  const teamMembers: TeamMember[] = team.teamMembers || [];
+  // console.log(team.members)
 
   const roleConfig = {
     Owner: { icon: Crown, color: "text-purple-600", bgColor: "bg-purple-100" },
@@ -146,7 +88,7 @@ export function DeputyView({ team, onModeChange }: DeputyViewProps) {
 
   const handleAddMember = () => {
     if (newMemberEmail) {
-      console.log("Adding member:", newMemberEmail)
+      // console.log("Adding member:", newMemberEmail)
       setNewMemberEmail("")
       setShowAddMemberDialog(false)
     }
@@ -154,19 +96,19 @@ export function DeputyView({ team, onModeChange }: DeputyViewProps) {
 
   const handleKickMember = () => {
     if (selectedMember) {
-      console.log("Kicking member:", selectedMember.name)
+      // console.log("Kicking member:", selectedMember.name)
       setShowKickMemberDialog(false)
       setSelectedMember(null)
     }
   }
 
   const handleRenameWorkspace = () => {
-    console.log("Renaming workspace to:", newWorkspaceName)
+    // console.log("Renaming workspace to:", newWorkspaceName)
     setShowRenameDialog(false)
   }
 
   const handleSetCurrency = () => {
-    console.log("Setting currency to:", selectedCurrency)
+    // console.log("Setting currency to:", selectedCurrency)
     setShowCurrencyDialog(false)
   }
 
@@ -177,10 +119,10 @@ export function DeputyView({ team, onModeChange }: DeputyViewProps) {
       setNewCategoryIcon("")
     } else if (!newCategoryName || !newCategoryIcon) {
       // Handle empty fields
-      console.log("Please enter both category name and icon.")
+      // console.log("Please enter both category name and icon.")
     } else {
       // Handle duplicate name
-      console.log("Category name already exists.")
+      // console.log("Category name already exists.")
     }
   }
 
@@ -196,7 +138,7 @@ export function DeputyView({ team, onModeChange }: DeputyViewProps) {
 
   const handleSavePermission = () => {
     if (selectedMemberForEdit) {
-      console.log("Changing role of", selectedMemberForEdit.name, "to", newRole)
+      // console.log("Changing role of", selectedMemberForEdit.name, "to", newRole)
       setShowEditPermissionDialog(false)
       setSelectedMemberForEdit(null)
     }
@@ -210,6 +152,11 @@ export function DeputyView({ team, onModeChange }: DeputyViewProps) {
     // Can assign roles equal to or lower than current user's role
     return roleHierarchy.slice(currentRoleIndex)
   }
+
+  // Sửa hàm check user hiện tại
+  const isCurrentUser = (member: TeamMember) => {
+    return user?.id === member.id;
+  };
 
   return (
     <div className="p-6 max-w-7xl mx-auto">
@@ -281,15 +228,15 @@ export function DeputyView({ team, onModeChange }: DeputyViewProps) {
             </CardHeader>
             <CardContent>
               <div className="space-y-4">
-                {teamMembers.map((member) => {
-                  const config = roleConfig[member.role]
+                {(teamMembers || []).map((member) => {
+                  const config = roleConfig[member.role.slice(0, 1).toUpperCase() + member.role.slice(1) as UserRole]
                   const Icon = config.icon
                   const canKick = canKickMember(member.role)
                   const canModify = canModifyPermissions(member.role)
-                  const isCurrentUser = member.email === "phungdinh@gmail.com" // Hoặc lấy từ useAuth
+                  const isThisMemberTheCurrentUser = isCurrentUser(member); // Dùng hàm đã sửa
 
                   return (
-                    <div key={member.id} className="flex items-center justify-between p-4 border rounded-lg">
+                    <div key={member.User.id} className="flex items-center justify-between p-4 border rounded-lg">
                       <div className="flex items-center gap-4">
                         <div className="relative">
                           <Avatar className="w-10 h-10">
@@ -316,7 +263,7 @@ export function DeputyView({ team, onModeChange }: DeputyViewProps) {
                         </div>
                       </div>
                       <div className="flex items-center gap-2">
-                        {!isCurrentUser && canModify && (
+                        {!isThisMemberTheCurrentUser && canModify && (
                           <Button
                             variant="outline"
                             size="sm"
@@ -327,7 +274,7 @@ export function DeputyView({ team, onModeChange }: DeputyViewProps) {
                             Sửa quyền
                           </Button>
                         )}
-                        {!isCurrentUser && canKick && (
+                        {!isThisMemberTheCurrentUser && canKick && (
                           <Dialog open={showKickMemberDialog} onOpenChange={setShowKickMemberDialog}>
                             <DialogTrigger asChild>
                               <Button
@@ -362,7 +309,7 @@ export function DeputyView({ team, onModeChange }: DeputyViewProps) {
                             </DialogContent>
                           </Dialog>
                         )}
-                        {!isCurrentUser && !canKick && !canModify && (
+                        {!isThisMemberTheCurrentUser && !canKick && !canModify && (
                           <Badge variant="secondary" className="text-xs">
                             Không thể quản lý
                           </Badge>

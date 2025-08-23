@@ -20,6 +20,12 @@ export function RoleSwitcher({ teamName, actualRole, currentMode, onModeChange }
     Member: { icon: User, color: "text-gray-600", label: "Member" },
   }
 
+  actualRole = actualRole.slice(0, 1).toUpperCase() + actualRole.slice(1) as UserRole;
+  currentMode = currentMode.slice(0, 1).toUpperCase() + currentMode.slice(1) as UserRole;
+
+  // THÊM KIỂM TRA AN TOÀN
+  const safeCurrentMode = currentMode || actualRole;
+
   // Role hierarchy: Owner > Admin > Deputy > Member
   const roleHierarchy: UserRole[] = ["Owner", "Admin", "Deputy", "Member"]
 
@@ -28,12 +34,8 @@ export function RoleSwitcher({ teamName, actualRole, currentMode, onModeChange }
     const currentRoleIndex = roleHierarchy.indexOf(actualRole)
     let modes = roleHierarchy.slice(currentRoleIndex)
 
-    // If the actual user role is Owner, they can view as Admin, Deputy, Member.
-    // The 'Owner' mode itself is not a 'view as' option in the switcher,
-    // as Admin view will implicitly handle Owner-specific features (like delete team).
     if (actualRole === "Owner") {
       modes = modes.filter((mode) => mode !== "Owner")
-      // Ensure Admin is present as the highest selectable mode for an Owner
       if (!modes.includes("Admin")) {
         modes.unshift("Admin")
       }
@@ -42,14 +44,20 @@ export function RoleSwitcher({ teamName, actualRole, currentMode, onModeChange }
   }
 
   const availableModes = getAvailableModes()
-  const currentConfig = roleConfig[currentMode]
+  const currentConfig = roleConfig[safeCurrentMode] // SỬA ĐÂY
+  
+  // THÊM KIỂM TRA FALLBACK
+  if (!currentConfig) {
+    console.error('❌ Invalid role configuration:', { actualRole, currentMode: safeCurrentMode });
+    return null;
+  }
+  
   const CurrentIcon = currentConfig.icon
 
   // Determine the label to display in the trigger button
-  const triggerLabel = actualRole === "Owner" && currentMode === "Owner" ? "Admin" : currentConfig.label
+  const triggerLabel = actualRole === "Owner" && safeCurrentMode === "Owner" ? "Admin" : currentConfig.label
 
-  if (availableModes.length <= 1 && !(actualRole === "Owner" && currentMode === "Owner")) {
-    // If only one mode available (and not an Owner implicitly viewing as Admin), don't show switcher
+  if (availableModes.length <= 1 && !(actualRole === "Owner" && safeCurrentMode === "Owner")) {
     return null
   }
 
@@ -66,14 +74,13 @@ export function RoleSwitcher({ teamName, actualRole, currentMode, onModeChange }
         {availableModes.map((mode) => {
           const config = roleConfig[mode]
           const Icon = config.icon
-          // Determine the label for each dropdown item
           const itemLabel = actualRole === "Owner" && mode === "Owner" ? "Admin" : config.label
 
           return (
             <DropdownMenuItem
               key={mode}
               onClick={() => onModeChange(mode)}
-              className={currentMode === mode ? "bg-gray-100" : ""}
+              className={safeCurrentMode === mode ? "bg-gray-100" : ""} // SỬA ĐÂY
             >
               <Icon className={`w-4 h-4 mr-2 ${config.color}`} />
               View as {itemLabel}

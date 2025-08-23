@@ -3,6 +3,8 @@ import { TransactionModel } from '../model/transactionModel.js';
 import { TeamModel } from '../model/teamModel.js';
 // Bỏ import MemberModel vì đã tích hợp vào TeamModel
 import type { Prisma } from '@prisma/client';
+import { PrismaClient } from '@prisma/client'; // THÊM DÒNG NÀY
+const prisma = new PrismaClient(); 
 
 interface AddTransactionData {
   teamId: number;

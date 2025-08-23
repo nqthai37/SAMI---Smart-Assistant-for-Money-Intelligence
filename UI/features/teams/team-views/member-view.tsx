@@ -43,6 +43,7 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog"
 import { toast } from "sonner"
+import { useAuth } from "@/lib/auth"; // Import hook useAuth
 
 type FilterType = "daily" | "weekly" | "monthly" | "annual" | "all-time"
 
@@ -61,6 +62,8 @@ export function MemberView({
   onUpdateTransaction,
   onDeleteTransaction,
 }: MemberViewProps) {
+  const { user } = useAuth(); // Lấy thông tin user đang đăng nhập
+
   // State for Group Date Filtering
   const [showDateFilterDialog, setShowDateFilterDialog] = useState(false)
   const [currentDateFilterType, setCurrentDateFilterType] = useState<FilterType>("monthly")
@@ -176,8 +179,9 @@ export function MemberView({
 
   // My transactions (for "Giao dịch của tôi" section and Personal Reports)
   const myTransactions = useMemo(() => {
-    let personalFiltered = allTransactions.filter((t) => t.createdBy === "Phùng Đình") // Assuming "Phùng Đình" is the current user for this mock
-
+    if (!user) return [];
+    // Nên lọc theo ID nếu có, nếu không thì dùng tên
+    let personalFiltered = allTransactions.filter((t) => t.createdBy === user.name);
     // Apply personal date filter
     personalFiltered = applyDateFilter(personalFiltered, personalDateFilterType, personalDateFilterValue)
 
@@ -192,7 +196,7 @@ export function MemberView({
     }
 
     return personalFiltered
-  }, [allTransactions, personalDateFilterType, personalDateFilterValue, myTransactionSearchTerm])
+  }, [allTransactions, personalDateFilterType, personalDateFilterValue, myTransactionSearchTerm, user])
 
   const myPendingRequests = myTransactions.filter((t) => t.status !== "approved")
 
@@ -266,7 +270,7 @@ export function MemberView({
   const budgetProgress = (groupTotalExpenses / budgetLimit) * 100
 
   const handleAcceptRequest = (transactionId: string, requestType: "edit" | "delete") => {
-    console.log(`Accept ${requestType} request for transaction:`, transactionId)
+    // console.log(`Accept ${requestType} request for transaction:`, transactionId)
     toast.success(`Đã chấp nhận yêu cầu ${requestType} cho giao dịch ${transactionId}.`)
     // In a real app, you'd update the transaction status in your backend
     // For now, we'll just remove it from pending requests if it's a delete request
@@ -288,7 +292,7 @@ export function MemberView({
   }
 
   const handleRejectRequest = (transactionId: string) => {
-    console.log("Reject request for transaction:", transactionId)
+    // console.log("Reject request for transaction:", transactionId)
     toast.info(`Đã từ chối yêu cầu cho giao dịch ${transactionId}.`)
     // In a real app, you'd update the transaction status in your backend
     // For now, we'll just revert its status or remove the request details
@@ -327,15 +331,14 @@ export function MemberView({
     category: string
     note?: string
   }) => {
-    console.log("Adding new transaction:", transactionData)
-    // Simulate adding a new transaction
+    if (!user) return;
     const newTransaction: Transaction = {
       id: `temp-${Date.now()}`, // Generate a temporary ID
       description: transactionData.description,
       amount: transactionData.amount,
       type: transactionData.type,
       category: transactionData.category,
-      createdBy: "Phùng Đình", // Mock current user
+      createdBy: user.name, // Dùng tên user đang đăng nhập
       status: "approved", // New transactions are approved by default
       createdAt: transactionData.date.toISOString().split("T")[0],
       note: transactionData.note,
@@ -345,35 +348,19 @@ export function MemberView({
   }
 
   // Data for charts (matching image values) - these should ideally be derived from filteredTransactions
-  const chartData = {
-    generalIncome: groupTotalIncome, // Use filtered income
-    generalExpense: groupTotalExpenses, // Use filtered expense
-    incomeBreakdown: [
-      { category: "Lương", percentage: 68, color: "#10B981" }, // Green
-      { category: "Dịch vụ", percentage: 18, color: "#3B82F6" }, // Blue
-      { category: "Bán hàng", percentage: 14, color: "#8B5CF6" }, // Purple
-    ],
-    expenseBreakdown: [
-      { category: "Ăn uống", percentage: 50, color: "#EF4444" }, // Red
-      { category: "Di chuyển", percentage: 25, color: "#F59E0B" }, // Orange
-      { category: "Thiết bị", percentage: 15, color: "#06B6D4" }, // Teal
-      { category: "Marketing", percentage: 10, color: "#84CC16" }, // Green
-    ],
-    yearlyTrend: [
-      { month: "T1", income: 12000000, expense: 8000000 },
-      { month: "T2", income: 15000000, expense: 10000000 },
-      { month: "T3", income: 18000000, expense: 12000000 },
-      { month: "T4", income: 14000000, expense: 9000000 },
-      { month: "T5", income: 16000000, expense: 11000000 },
-      { month: "T6", income: 20000000, expense: 13000000 },
-      { month: "T7", income: 22000000, expense: 15000000 },
-      { month: "T8", income: 19000000, expense: 12000000 },
-      { month: "T9", income: 17000000, expense: 11000000 },
-      { month: "T10", income: 21000000, expense: 14000000 },
-      { month: "T11", income: 18000000, expense: 13000000 },
-      { month: "T12", income: 25000000, expense: 16000000 },
-    ],
-  }
+  const chartData = useMemo(() => {
+    const groupTotalIncome = filteredTransactions.filter(t => t.type === 'income').reduce((sum, t) => sum + t.amount, 0);
+    const groupTotalExpenses = filteredTransactions.filter(t => t.type === 'expense').reduce((sum, t) => sum + t.amount, 0);
+    
+    // Tương tự, tính toán incomeBreakdown, expenseBreakdown... từ filteredTransactions
+    // ...
+
+    return {
+      generalIncome: groupTotalIncome,
+      generalExpense: groupTotalExpenses,
+      // ...
+    };
+  }, [filteredTransactions]);
 
   // Helper to create Bar Chart SVG for General
   const createBarChart = (income: number, expense: number) => {

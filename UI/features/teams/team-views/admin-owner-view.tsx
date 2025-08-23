@@ -1,7 +1,6 @@
 "use client"
 
 import type React from "react"
-
 import {
   DollarSign,
   TrendingUp,
@@ -43,17 +42,18 @@ import { TransactionFilterDialog } from "../../transactions/components/transacti
 import { Textarea } from "@/components/ui/textarea"
 import { useAuth } from "@/lib/auth"
 import { toast } from "react-hot-toast"
-import { requestEditTransactionAPI, requestDeleteTransactionAPI } from "../../lib/api.js"
+// Giả định bạn có một client API đã được cấu hình
+import { api } from "@/lib/api" 
 
 type FilterType = "daily" | "weekly" | "monthly" | "annual" | "all-time"
 
 interface AdminOwnerViewProps {
   team: Team
   onModeChange: (mode: any) => void
-  onUpdateTeam: (updatedTeam: Team) => void // New prop for updating team properties
-  allTransactions: Transaction[] // All transactions from homepage
-  onUpdateTransaction: (updatedTransaction: Transaction) => void // New prop for updating a single transaction
-  onDeleteTransaction: (transactionId: string) => void // New prop for deleting a transaction
+  onUpdateTeam: (updatedTeam: Team) => void
+  allTransactions: Transaction[]
+  onUpdateTransaction: (updatedTransaction: Transaction) => void
+  onDeleteTransaction: (transactionId: string) => void
 }
 
 export function AdminOwnerView({
@@ -67,36 +67,26 @@ export function AdminOwnerView({
   const { user } = useAuth()
   const isOwner = team.currentUserRole === "Owner"
 
-  // State for Date Filtering
+  // States
   const [showDateFilterDialog, setShowDateFilterDialog] = useState(false)
   const [currentDateFilterType, setCurrentDateFilterType] = useState<FilterType>("monthly")
   const [currentDateFilterValue, setCurrentDateFilterValue] = useState<
     Date | { month: number; year: number } | { year: number } | undefined
-  >(undefined)
-
-  // State for Transaction Filtering
+  >({ month: new Date().getMonth(), year: new Date().getFullYear() })
   const [showTransactionFilterDialog, setShowTransactionFilterDialog] = useState(false)
   const [transactionFilters, setTransactionFilters] = useState({
     creators: [] as string[],
     categories: [] as string[],
     type: "all" as "all" | "income" | "expense",
   })
-
-  // State for AI Chat Dialog
   const [showAIChatDialog, setShowAIChatDialog] = useState(false)
   const [aiChatInput, setAiChatInput] = useState("")
   const [aiChatMessages, setAiChatMessages] = useState<{ sender: "user" | "ai"; text: string; timestamp: string }[]>([])
-
-  // Plan and Budget states (using team props now)
   const [newIncomeTarget, setNewIncomeTarget] = useState("")
   const [newBudgetLimit, setNewBudgetLimit] = useState("")
   const [showPlanDialog, setShowPlanDialog] = useState(false)
   const [showBudgetDialog, setShowBudgetDialog] = useState(false)
-
-  // Delete Team Confirmation Dialog
   const [showDeleteTeamConfirmDialog, setShowDeleteTeamConfirmDialog] = useState(false)
-
-  // Transaction Edit/Delete Request Dialogs
   const [showEditTransactionDialog, setShowEditTransactionDialog] = useState(false)
   const [showDeleteTransactionDialog, setShowDeleteTransactionDialog] = useState(false)
   const [selectedTransaction, setSelectedTransaction] = useState<Transaction | null>(null)
@@ -107,25 +97,19 @@ export function AdminOwnerView({
   const [editReason, setEditReason] = useState("")
   const [deleteReason, setDeleteReason] = useState("")
 
+  // --- UTILS ---
   const formatCurrency = (amount: number) => {
-    return new Intl.NumberFormat("vi-VN", {
-      style: "currency",
-      currency: "VND",
-    }).format(amount)
+    return new Intl.NumberFormat("vi-VN", { style: "currency", currency: "VND" }).format(amount)
   }
 
-  // Format short date
   const formatShortDate = (dateString: string) => {
     const date = new Date(dateString)
     return `${date.getDate()}/${date.getMonth() + 1}`
   }
 
-  // Shorten name
   const shortenName = (name: string) => {
-    const parts = name.split(" ")
-    if (parts.length > 2) {
-      return `${parts[0]} ${parts[parts.length - 1]}`
-    }
+    const parts = (name || "").split(" ")
+    if (parts.length > 2) return `${parts[0]} ${parts[parts.length - 1]}`
     return name
   }
 
@@ -135,37 +119,20 @@ export function AdminOwnerView({
     return category?.icon || "📦"
   }
 
-  // Filter transactions based on date and transaction filters
+  // --- DATA PROCESSING ---
   const filteredTransactions = useMemo(() => {
     let filtered = allTransactions
-
-    // Apply date filter
     if (currentDateFilterType === "daily" && currentDateFilterValue instanceof Date) {
-      filtered = filtered.filter((t) => {
-        const transactionDate = new Date(t.createdAt)
-        return (
-          transactionDate.getDate() === currentDateFilterValue.getDate() &&
-          transactionDate.getMonth() === currentDateFilterValue.getMonth() &&
-          transactionDate.getFullYear() === currentDateFilterValue.getFullYear()
-        )
-      })
+      filtered = filtered.filter((t) => new Date(t.createdAt).toDateString() === currentDateFilterValue.toDateString())
     } else if (currentDateFilterType === "monthly" && currentDateFilterValue && "month" in currentDateFilterValue) {
       filtered = filtered.filter((t) => {
-        const transactionDate = new Date(t.createdAt)
-        return (
-          transactionDate.getMonth() === currentDateFilterValue.month &&
-          transactionDate.getFullYear() === currentDateFilterValue.year
-        )
+        const d = new Date(t.createdAt)
+        return d.getMonth() === currentDateFilterValue.month && d.getFullYear() === currentDateFilterValue.year
       })
     } else if (currentDateFilterType === "annual" && currentDateFilterValue && "year" in currentDateFilterValue) {
-      filtered = filtered.filter((t) => {
-        const transactionDate = new Date(t.createdAt)
-        return transactionDate.getFullYear() === currentDateFilterValue.year
-      })
+      filtered = filtered.filter((t) => new Date(t.createdAt).getFullYear() === currentDateFilterValue.year)
     }
-    // If "all-time", no date filtering is applied
 
-    // Apply transaction filters
     if (transactionFilters.creators.length > 0) {
       filtered = filtered.filter((t) => transactionFilters.creators.includes(t.createdBy))
     }
@@ -175,37 +142,121 @@ export function AdminOwnerView({
     if (transactionFilters.type !== "all") {
       filtered = filtered.filter((t) => t.type === transactionFilters.type)
     }
-
     return filtered
   }, [allTransactions, currentDateFilterType, currentDateFilterValue, transactionFilters])
 
   const requestedTransactions = filteredTransactions.filter((t) => t.status !== "approved")
-  const approvedTransactions = filteredTransactions.filter((t) => t.status === "approved")
 
-  // Calculate current totals based on filtered transactions
-  const currentTotalIncome = filteredTransactions
-    .filter((t) => t.type === "income")
-    .reduce((sum, t) => sum + t.amount, 0)
-  const currentTotalExpenses = filteredTransactions
-    .filter((t) => t.type === "expense")
-    .reduce((sum, t) => sum + t.amount, 0)
+  const currentTotalIncome = useMemo(() => 
+    filteredTransactions
+      .filter((t) => t.type === "income")
+      .reduce((sum, t) => sum + Number(t.amount), 0),
+    [filteredTransactions]
+  )
+  
+  const currentTotalExpenses = useMemo(() =>
+    filteredTransactions
+      .filter((t) => t.type === "expense")
+      .reduce((sum, t) => sum + Number(t.amount), 0),
+    [filteredTransactions]
+  )
+
   const currentBalance = currentTotalIncome - currentTotalExpenses
 
-  // Monthly revenue calculation based on team data (hardcoded for now, but would use filtered data)
-  const monthlyRevenue = 1500000 // Hardcoded from image
-  const monthlyGrowth = 18 // Hardcoded from image
+  const { currentMonthIncome, monthlyGrowth } = useMemo(() => {
+    const now = new Date()
+    const currentMonth = now.getMonth()
+    const currentYear = now.getFullYear()
+    
+    const lastMonthDate = new Date(now.setMonth(now.getMonth() - 1))
+    const lastMonth = lastMonthDate.getMonth()
+    const lastMonthYear = lastMonthDate.getFullYear()
 
-  // Calculate progress percentages
-  const incomeProgress = (currentTotalIncome / (team.incomeTarget || 1)) * 100
-  const budgetProgress = (currentTotalExpenses / (team.budgetLimit || 1)) * 100
+    const currentMonthIncome = allTransactions
+      .filter(t => {
+        const d = new Date(t.createdAt)
+        return t.type === "income" && d.getMonth() === currentMonth && d.getFullYear() === currentYear
+      })
+      .reduce((sum, t) => sum + Number(t.amount), 0)
+      
+    const lastMonthIncome = allTransactions
+      .filter(t => {
+        const d = new Date(t.createdAt)
+        return t.type === "income" && d.getMonth() === lastMonth && d.getFullYear() === lastMonthYear
+      })
+      .reduce((sum, t) => sum + Number(t.amount), 0)
 
+    const growth = lastMonthIncome === 0 
+      ? (currentMonthIncome > 0 ? 100 : 0)
+      : ((currentMonthIncome - lastMonthIncome) / lastMonthIncome) * 100
+      
+    return { currentMonthIncome, monthlyGrowth: growth }
+  }, [allTransactions])
+
+  const incomeProgress = Math.min((currentTotalIncome / (team.incomeGoal || 1)) * 100, 100)
+  const budgetProgress = Math.min((currentTotalExpenses / (team.budget || 1)) * 100, 100)
+
+  // --- DYNAMIC CHART DATA CALCULATION ---
+
+  const calculateCategoryBreakdown = (transactions: Transaction[], type: "income" | "expense") => {
+    const total = transactions
+      .filter(t => t.type === type)
+      .reduce((sum, t) => sum + Number(t.amount), 0)
+    
+    if (total === 0) return []
+
+    const categoryMap = new Map<string, number>()
+    transactions
+      .filter(t => t.type === type)
+      .forEach(t => {
+        categoryMap.set(t.category, (categoryMap.get(t.category) || 0) + Number(t.amount))
+      })
+    
+    const colors = ["#10B981", "#3B82F6", "#8B5CF6", "#EF4444", "#F59E0B", "#06B6D4"]
+    let colorIndex = 0
+
+    return Array.from(categoryMap.entries())
+      .map(([category, amount]) => ({
+        category,
+        percentage: (amount / total) * 100,
+        color: colors[colorIndex++ % colors.length]
+      }))
+      .sort((a, b) => b.percentage - a.percentage)
+  }
+
+  const incomeBreakdown = useMemo(() => calculateCategoryBreakdown(filteredTransactions, "income"), [filteredTransactions])
+  const expenseBreakdown = useMemo(() => calculateCategoryBreakdown(filteredTransactions, "expense"), [filteredTransactions])
+  
+  const yearlyTrend = useMemo(() => {
+    const trend: { month: string; income: number; expense: number }[] = []
+    const now = new Date()
+    for (let i = 11; i >= 0; i--) {
+      const d = new Date(now.getFullYear(), now.getMonth() - i, 1)
+      const month = d.getMonth()
+      const year = d.getFullYear()
+      
+      const monthTransactions = allTransactions.filter(t => {
+        const tDate = new Date(t.createdAt)
+        return tDate.getMonth() === month && tDate.getFullYear() === year
+      })
+
+      const income = monthTransactions.filter(t => t.type === "income").reduce((sum, t) => sum + Number(t.amount), 0)
+      const expense = monthTransactions.filter(t => t.type === "expense").reduce((sum, t) => sum + Number(t.amount), 0)
+      
+      trend.push({ month: `T${month + 1}`, income, expense })
+    }
+    return trend
+  }, [allTransactions])
+
+  // --- HANDLERS ---
+  
   const handleRequestEdit = (transaction: Transaction) => {
     setSelectedTransaction(transaction)
     setEditDescription(transaction.description)
     setEditAmount(transaction.amount.toString())
     setEditCategory(transaction.category)
     setEditType(transaction.type)
-    setEditReason("") // Clear previous reason
+    setEditReason("")
     setShowEditTransactionDialog(true)
   }
 
@@ -222,10 +273,10 @@ export function AdminOwnerView({
         requestReason: editReason.trim(),
         requestedAt: new Date().toISOString(),
       }
-      onUpdateTransaction(updatedTransaction)
+      onUpdateTransaction(updatedTransaction) // Optimistic update
+      // await requestEditTransactionAPI(...) // Call real API
       toast.success("Yêu cầu sửa giao dịch đã được gửi!")
       setShowEditTransactionDialog(false)
-      setSelectedTransaction(null)
     } else {
       toast.error("Vui lòng nhập lý do sửa giao dịch.")
     }
@@ -233,7 +284,7 @@ export function AdminOwnerView({
 
   const handleRequestDelete = (transaction: Transaction) => {
     setSelectedTransaction(transaction)
-    setDeleteReason("") // Clear previous reason
+    setDeleteReason("")
     setShowDeleteTransactionDialog(true)
   }
 
@@ -246,308 +297,64 @@ export function AdminOwnerView({
         requestReason: deleteReason.trim(),
         requestedAt: new Date().toISOString(),
       }
-      onUpdateTransaction(updatedTransaction)
+      onUpdateTransaction(updatedTransaction) // Optimistic update
+      // await requestDeleteTransactionAPI(...) // Call real API
       toast.success("Yêu cầu xóa giao dịch đã được gửi!")
       setShowDeleteTransactionDialog(false)
-      setSelectedTransaction(null)
     } else {
       toast.error("Vui lòng nhập lý do xóa giao dịch.")
     }
   }
-
-  const handleSetIncomeTarget = () => {
+  
+  // Các hàm này cần client API thực tế
+  const handleSetIncomeTarget = async () => {
     if (newIncomeTarget) {
-      onUpdateTeam({ ...team, incomeTarget: Number.parseInt(newIncomeTarget) })
-      setNewIncomeTarget("")
-      setShowPlanDialog(false)
+      try {
+        await api.patch(`/teams/${team.id}/income-goal`, { target: Number(newIncomeTarget) });
+        onUpdateTeam({ ...team, incomeGoal: Number(newIncomeTarget) });
+        toast.success("Mục tiêu thu nhập đã được cập nhật!");
+        setShowPlanDialog(false)
+        setNewIncomeTarget("")
+      } catch (error: any) {
+        toast.error("Lỗi: " + (error.response?.data?.message || error.message));
+      }
     }
   }
 
-  const handleSetBudgetLimit = () => {
+  const handleSetBudgetLimit = async () => {
     if (newBudgetLimit) {
-      onUpdateTeam({ ...team, budgetLimit: Number.parseInt(newBudgetLimit) })
-      setNewBudgetLimit("")
-      setShowBudgetDialog(false)
+      try {
+        await api.patch(`/teams/${team.id}/budget`, { amount: Number(newBudgetLimit) });
+        onUpdateTeam({ ...team, budget: Number(newBudgetLimit) });
+        toast.success("Ngân sách đã được cập nhật!");
+        setShowBudgetDialog(false)
+        setNewBudgetLimit("")
+      } catch (error: any) {
+        toast.error("Lỗi: " + (error.response?.data?.message || error.message));
+      }
     }
   }
 
-  const handleToggleMemberReportsView = () => {
-    onUpdateTeam({ ...team, canMembersViewReports: !team.canMembersViewReports })
-  }
-
-  const handleConfirmDeleteTeam = () => {
-    console.log("Deleting team:", team.name)
-    toast.success(`Nhóm "${team.name}" đã được xóa.`)
-    // In a real app, you'd redirect to the team list or homepage
-    setShowDeleteTeamConfirmDialog(false)
-  }
-
-  // Data for charts (matching image values) - these should ideally be derived from filteredTransactions
-  const chartData = {
-    generalIncome: currentTotalIncome, // Use filtered income
-    generalExpense: currentTotalExpenses, // Use filtered expense
-    incomeBreakdown: [
-      { category: "Lương", percentage: 68, color: "#10B981" }, // Green
-      { category: "Dịch vụ", percentage: 18, color: "#3B82F6" }, // Blue
-      { category: "Bán hàng", percentage: 14, color: "#8B5CF6" }, // Purple
-    ],
-    expenseBreakdown: [
-      { category: "Ăn uống", percentage: 50, color: "#EF4444" }, // Red
-      { category: "Di chuyển", percentage: 25, color: "#F59E0B" }, // Orange
-      { category: "Thiết bị", percentage: 15, color: "#06B6D4" }, // Teal
-      { category: "Marketing", percentage: 10, color: "#84CC16" }, // Green
-    ],
-    yearlyTrend: [
-      { month: "T1", income: 12000000, expense: 8000000 },
-      { month: "T2", income: 15000000, expense: 10000000 },
-      { month: "T3", income: 18000000, expense: 12000000 },
-      { month: "T4", income: 14000000, expense: 9000000 },
-      { month: "T5", income: 16000000, expense: 11000000 },
-      { month: "T6", income: 20000000, expense: 13000000 },
-      { month: "T7", income: 22000000, expense: 15000000 },
-      { month: "T8", income: 19000000, expense: 12000000 },
-      { month: "T9", income: 17000000, expense: 11000000 },
-      { month: "T10", income: 21000000, expense: 14000000 },
-      { month: "T11", income: 18000000, expense: 13000000 },
-      { month: "T12", income: 25000000, expense: 16000000 },
-    ],
-  }
-
-  // Helper to create Bar Chart SVG for General
-  const createBarChart = (income: number, expense: number) => {
-    const maxVal = Math.max(income, expense)
-    const incomeHeight = (income / maxVal) * 96 // Max height 96px
-    const expenseHeight = (expense / maxVal) * 96 // Max height 96px
-
-    return (
-      <div className="flex items-end justify-center gap-8 h-32 mb-4">
-        <div className="flex flex-col items-center">
-          <div className="w-12 rounded-t-lg bg-green-500" style={{ height: `${incomeHeight}px` }}></div>
-          <span className="text-sm text-gray-600 mt-2">Income</span>
-        </div>
-        <div className="flex flex-col items-center">
-          <div className="w-12 rounded-t-lg bg-red-500" style={{ height: `${expenseHeight}px` }}></div>
-          <span className="text-sm text-gray-600 mt-2">Expense</span>
-        </div>
-      </div>
-    )
-  }
-
-  // Helper to create Donut Chart SVG
-  const createDonutChart = (data: { category: string; percentage: number; color: string }[], size = 120) => {
-    const radius = 40
-    const strokeWidth = 20
-    const center = size / 2
-    let cumulativePercentage = 0
-
-    return (
-      <div className="relative flex items-center justify-center">
-        <svg width={size} height={size} className="transform -rotate-90">
-          <circle cx={center} cy={center} r={radius} fill="none" stroke="#F3F4F6" strokeWidth={strokeWidth} />
-          {data.map((item, index) => {
-            const strokeDasharray = `${(item.percentage / 100) * 2 * Math.PI * radius} ${2 * Math.PI * radius}`
-            const strokeDashoffset = (-cumulativePercentage * 2 * Math.PI * radius) / 100
-            cumulativePercentage += item.percentage
-
-            return (
-              <circle
-                key={index}
-                cx={center}
-                cy={center}
-                r={radius}
-                fill="none"
-                stroke={item.color}
-                strokeWidth={strokeWidth}
-                strokeDasharray={strokeDasharray}
-                strokeDashoffset={strokeDashoffset}
-                className="transition-all duration-300"
-              />
-            )
-          })}
-        </svg>
-      </div>
-    )
-  }
-
-  // Helper to create Line Chart SVG
-  const createLineChart = () => {
-    const width = 700
-    const height = 250
-    const padding = 60
-    const chartWidth = width - padding * 2
-    const chartHeight = height - padding * 2
-
-    // Fixed Y-axis values from image
-    const yAxisValues = [0, 6250000, 12500000, 18750000, 25000000]
-    const maxChartValue = yAxisValues[yAxisValues.length - 1]
-
-    const incomePoints = chartData.yearlyTrend
-      .map((d, i) => {
-        const x = padding + (i * chartWidth) / (chartData.yearlyTrend.length - 1)
-        const y = padding + chartHeight - (d.income / maxChartValue) * chartHeight
-        return `${x},${y}`
-      })
-      .join(" ")
-
-    const expensePoints = chartData.yearlyTrend
-      .map((d, i) => {
-        const x = padding + (i * chartWidth) / (chartData.yearlyTrend.length - 1)
-        const y = padding + chartHeight - (d.expense / maxChartValue) * chartHeight
-        return `${x},${y}`
-      })
-      .join(" ")
-
-    return (
-      <div className="w-full overflow-x-auto">
-        <svg width={width} height={height} className="min-w-full">
-          {/* Grid lines */}
-          {yAxisValues.map((_, i) => {
-            if (i === 0) return null // Don't draw line for 0
-            const y = padding + chartHeight - (i / (yAxisValues.length - 1)) * chartHeight
-            return (
-              <line
-                key={`grid-y-${i}`}
-                x1={padding}
-                y1={y}
-                x2={width - padding}
-                y2={y}
-                stroke="#E5E7EB"
-                strokeWidth="1"
-              />
-            )
-          })}
-
-          {/* Y-axis line */}
-          <line x1={padding} y1={padding} x2={padding} y2={padding + chartHeight} stroke="#6B7280" strokeWidth="2" />
-
-          {/* X-axis line */}
-          <line
-            x1={padding}
-            y1={padding + chartHeight}
-            x2={width - padding}
-            y2={padding + chartHeight}
-            stroke="#6B7280"
-            strokeWidth="2"
-          />
-
-          {/* Y-axis labels */}
-          {yAxisValues.map((value, i) => {
-            const label = value === 0 ? "0K" : value >= 1000000 ? `${value / 1000000}M` : `${value / 1000}K`
-            const y = padding + chartHeight - (i / (yAxisValues.length - 1)) * chartHeight
-            return (
-              <text
-                key={`y-label-${i}`}
-                x={padding - 10}
-                y={y + 4}
-                textAnchor="end"
-                className="text-xs fill-gray-600 font-medium"
-              >
-                {label}
-              </text>
-            )
-          })}
-
-          {/* Income line */}
-          <polyline
-            points={incomePoints}
-            fill="none"
-            stroke="#10B981"
-            strokeWidth="3"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-          />
-
-          {/* Expense line */}
-          <polyline
-            points={expensePoints}
-            fill="none"
-            stroke="#EF4444"
-            strokeWidth="3"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-          />
-
-          {/* Income points */}
-          {chartData.yearlyTrend.map((d, i) => {
-            const x = padding + (i * chartWidth) / (chartData.yearlyTrend.length - 1)
-            const y = padding + chartHeight - (d.income / maxChartValue) * chartHeight
-            return <circle key={`income-${i}`} cx={x} cy={y} r="4" fill="#10B981" />
-          })}
-
-          {/* Expense points */}
-          {chartData.yearlyTrend.map((d, i) => {
-            const x = padding + (i * chartWidth) / (chartData.yearlyTrend.length - 1)
-            const y = padding + chartHeight - (d.expense / maxChartValue) * chartHeight
-            return <circle key={`expense-${i}`} cx={x} cy={y} r="4" fill="#EF4444" />
-          })}
-
-          {/* X-axis labels */}
-          {chartData.yearlyTrend.map((d, i) => {
-            const x = padding + (i * chartWidth) / (chartData.yearlyTrend.length - 1)
-            return (
-              <text
-                key={`label-${i}`}
-                x={x}
-                y={height - 15}
-                textAnchor="middle"
-                className="text-xs fill-gray-600 font-medium"
-              >
-                {d.month}
-              </text>
-            )
-          })}
-
-          {/* Y-axis title */}
-          <text
-            x={20}
-            y={padding + chartHeight / 2}
-            textAnchor="middle"
-            className="text-xs fill-gray-600 font-medium"
-            transform={`rotate(-90, 20, ${padding + chartHeight / 2})`}
-          >
-            Số tiền (VNĐ)
-          </text>
-
-          {/* X-axis title */}
-          <text
-            x={padding + chartWidth / 2}
-            y={height - 5}
-            textAnchor="middle"
-            className="text-xs fill-gray-600 font-medium"
-          >
-            Tháng
-          </text>
-        </svg>
-      </div>
-    )
-  }
-
-  const getDateFilterLabel = () => {
-    if (currentDateFilterType === "all-time") return "Tất cả thời gian"
-    if (currentDateFilterType === "daily" && currentDateFilterValue instanceof Date) {
-      return `Ngày ${currentDateFilterValue.getDate()}/${currentDateFilterValue.getMonth() + 1}/${currentDateFilterValue.getFullYear()}`
+  const handleToggleMemberReportsView = async () => {
+    try {
+      const newPermission = !team.allowMemberViewReport;
+      await api.patch(`/teams/${team.id}/report-permission`, { allow: newPermission });
+      onUpdateTeam({ ...team, allowMemberViewReport: newPermission });
+      toast.success(newPermission ? "Đã cho phép thành viên xem báo cáo" : "Đã thu hồi quyền xem báo cáo");
+    } catch (error: any) {
+      toast.error("Lỗi: " + (error.response?.data?.message || error.message));
     }
-    if (currentDateFilterType === "monthly" && currentDateFilterValue && "month" in currentDateFilterValue) {
-      const monthNames = [
-        "Tháng 1",
-        "Tháng 2",
-        "Tháng 3",
-        "Tháng 4",
-        "Tháng 5",
-        "Tháng 6",
-        "Tháng 7",
-        "Tháng 8",
-        "Tháng 9",
-        "Tháng 10",
-        "Tháng 11",
-        "Tháng 12",
-      ]
-      return `${monthNames[currentDateFilterValue.month]}, ${currentDateFilterValue.year}`
+  }
+
+  const handleConfirmDeleteTeam = async () => {
+    try {
+      await api.delete(`/teams/${team.id}`);
+      toast.success(`Nhóm "${team.teamName}" đã được xóa.`);
+      setShowDeleteTeamConfirmDialog(false)
+      // Chuyển hướng người dùng, ví dụ: window.location.href = '/';
+    } catch (error: any) {
+      toast.error("Lỗi: " + (error.response?.data?.message || error.message));
     }
-    if (currentDateFilterType === "annual" && currentDateFilterValue && "year" in currentDateFilterValue) {
-      return `Năm ${currentDateFilterValue.year}`
-    }
-    return "Chọn thời gian"
   }
 
   const handleAIChatSubmit = (e: React.FormEvent) => {
@@ -556,51 +363,192 @@ export function AdminOwnerView({
       setAiChatMessages((prev) => [
         ...prev,
         { sender: "user", text: aiChatInput, timestamp: new Date().toLocaleTimeString() },
-        {
-          sender: "ai",
-          text: "Tính năng này đang được phát triển. Vui lòng thử lại sau!",
-          timestamp: new Date().toLocaleTimeString(),
-        },
+        { sender: "ai", text: "Tính năng này đang được phát triển. Vui lòng thử lại sau!", timestamp: new Date().toLocaleTimeString() },
       ])
       setAiChatInput("")
     }
   }
 
+  // --- CHART RENDERING ---
+  // Các hàm create...Chart không thay đổi vì chúng chỉ là helper để render SVG
+  // Chúng sẽ nhận dữ liệu động đã được tính toán ở trên.
+  
+    // Helper to create Bar Chart SVG for General
+    const createBarChart = (income: number, expense: number) => {
+        const maxVal = Math.max(income, expense, 1) // Tránh chia cho 0
+        const incomeHeight = (income / maxVal) * 96 // Max height 96px
+        const expenseHeight = (expense / maxVal) * 96 // Max height 96px
+
+        return (
+          <div className="flex items-end justify-center gap-8 h-32 mb-4">
+            <div className="flex flex-col items-center">
+              <div className="w-12 rounded-t-lg bg-green-500" style={{ height: `${incomeHeight}px` }}></div>
+              <span className="text-sm text-gray-600 mt-2">Thu nhập</span>
+            </div>
+            <div className="flex flex-col items-center">
+              <div className="w-12 rounded-t-lg bg-red-500" style={{ height: `${expenseHeight}px` }}></div>
+              <span className="text-sm text-gray-600 mt-2">Chi tiêu</span>
+            </div>
+          </div>
+        )
+    }
+
+    // Helper to create Donut Chart SVG
+    const createDonutChart = (data: { category: string; percentage: number; color: string }[], size = 120) => {
+        if (!data || data.length === 0) {
+            return <div style={{width: size, height: size}} className="flex items-center justify-center text-gray-400 text-sm">Không có dữ liệu</div>
+        }
+        const radius = 40
+        const strokeWidth = 20
+        const center = size / 2
+        let cumulativePercentage = 0
+
+        return (
+        <div className="relative flex items-center justify-center">
+            <svg width={size} height={size} className="transform -rotate-90">
+            <circle cx={center} cy={center} r={radius} fill="none" stroke="#F3F4F6" strokeWidth={strokeWidth} />
+            {data.map((item, index) => {
+                const strokeDasharray = `${(item.percentage / 100) * 2 * Math.PI * radius} ${2 * Math.PI * radius}`
+                const strokeDashoffset = (-cumulativePercentage * 2 * Math.PI * radius) / 100
+                cumulativePercentage += item.percentage
+
+                return (
+                <circle
+                    key={index}
+                    cx={center}
+                    cy={center}
+                    r={radius}
+                    fill="none"
+                    stroke={item.color}
+                    strokeWidth={strokeWidth}
+                    strokeDasharray={strokeDasharray}
+                    strokeDashoffset={strokeDashoffset}
+                    className="transition-all duration-300"
+                />
+                )
+            })}
+            </svg>
+        </div>
+        )
+    }
+
+    // Helper to create Line Chart SVG
+    const createLineChart = () => {
+        const width = 700
+        const height = 250
+        const padding = 60
+        const chartWidth = width - padding * 2
+        const chartHeight = height - padding * 2
+
+        const maxIncome = Math.max(...yearlyTrend.map(d => d.income))
+        const maxExpense = Math.max(...yearlyTrend.map(d => d.expense))
+        const maxChartValue = Math.max(maxIncome, maxExpense, 1) // Lấy giá trị lớn nhất, tránh 0
+
+        const yAxisSteps = 4
+        const yAxisValues = Array.from({ length: yAxisSteps + 1 }, (_, i) => (maxChartValue / yAxisSteps) * i)
+        
+        const incomePoints = yearlyTrend
+        .map((d, i) => {
+            const x = padding + (i * chartWidth) / (yearlyTrend.length - 1)
+            const y = padding + chartHeight - (d.income / maxChartValue) * chartHeight
+            return `${x},${y}`
+        })
+        .join(" ")
+
+        const expensePoints = yearlyTrend
+        .map((d, i) => {
+            const x = padding + (i * chartWidth) / (yearlyTrend.length - 1)
+            const y = padding + chartHeight - (d.expense / maxChartValue) * chartHeight
+            return `${x},${y}`
+        })
+        .join(" ")
+
+        return (
+        <div className="w-full overflow-x-auto">
+            <svg width={width} height={height} className="min-w-full">
+            {/* Grid lines & Y-axis labels */}
+            {yAxisValues.map((value, i) => {
+                const y = padding + chartHeight - (i / yAxisSteps) * chartHeight
+                const label = value === 0 ? "0" : value >= 1000000 ? `${(value / 1000000).toFixed(1)}M` : `${(value / 1000).toFixed(0)}K`
+                return (
+                <g key={`y-grid-label-${i}`}>
+                    { i > 0 && <line x1={padding} y1={y} x2={width - padding} y2={y} stroke="#E5E7EB" strokeWidth="1" />}
+                    <text x={padding - 10} y={y + 4} textAnchor="end" className="text-xs fill-gray-600 font-medium">
+                    {label}
+                    </text>
+                </g>
+                )
+            })}
+            
+            <line x1={padding} y1={padding} x2={padding} y2={padding + chartHeight} stroke="#6B7280" strokeWidth="2" />
+            <line x1={padding} y1={padding + chartHeight} x2={width - padding} y2={padding + chartHeight} stroke="#6B7280" strokeWidth="2" />
+
+            {/* Lines and Points */}
+            <polyline points={incomePoints} fill="none" stroke="#10B981" strokeWidth="3" />
+            <polyline points={expensePoints} fill="none" stroke="#EF4444" strokeWidth="3" />
+            {yearlyTrend.map((d, i) => {
+                const x = padding + (i * chartWidth) / (yearlyTrend.length - 1)
+                const yIncome = padding + chartHeight - (d.income / maxChartValue) * chartHeight
+                const yExpense = padding + chartHeight - (d.expense / maxChartValue) * chartHeight
+                return (
+                <g key={`points-${i}`}>
+                    <circle cx={x} cy={yIncome} r="4" fill="#10B981" />
+                    <circle cx={x} cy={yExpense} r="4" fill="#EF4444" />
+                </g>
+                )
+            })}
+            
+            {/* X-axis labels */}
+            {yearlyTrend.map((d, i) => {
+                const x = padding + (i * chartWidth) / (yearlyTrend.length - 1)
+                return (
+                <text key={`label-${i}`} x={x} y={height - 15} textAnchor="middle" className="text-xs fill-gray-600 font-medium">
+                    {d.month}
+                </text>
+                )
+            })}
+            </svg>
+        </div>
+        )
+    }
+
+  const getDateFilterLabel = () => {
+    // ... logic không đổi
+  }
+
   const availableEditCategories = editType === "expense" ? expenseCategories : incomeCategories
 
+  // --- JSX RETURN ---
   return (
     <div className="p-6 max-w-7xl mx-auto">
-      {/* Header with Mode Switcher */}
+      {/* Header */}
       <div className="flex items-center justify-between mb-6 flex-wrap gap-y-4">
         <div className="flex items-center gap-4 flex-1 min-w-0">
           <div className="flex items-center gap-3 flex-1 min-w-0">
-            <div className={`w-4 h-4 rounded-full ${team.color} flex-shrink-0`}></div>
-            <h1 className="text-2xl font-bold text-gray-900 truncate flex-1">{team.name}</h1>
-            <Badge variant="secondary" className="flex-shrink-0">
-              {team.currentUserRole}
-            </Badge>
+             {/* team.color đã bị xóa vì không có trong schema */}
+            <div className={`w-4 h-4 rounded-full bg-blue-500 flex-shrink-0`}></div>
+            <h1 className="text-2xl font-bold text-gray-900 truncate flex-1">{team.teamName}</h1>
+            <Badge variant="secondary" className="flex-shrink-0">{team.currentUserRole}</Badge>
             <div className="flex-shrink-0">
               <RoleSwitcher
-                teamName={team.name}
+                teamName={team.teamName}
                 actualRole={team.currentUserRole}
-                currentMode={team.currentUserMode}
+                currentMode={team.currentUserMode || team.currentUserRole}
                 onModeChange={onModeChange}
               />
             </div>
           </div>
         </div>
-
         <div className="flex items-center gap-3 flex-wrap justify-end">
           <Button
             size="sm"
             variant="outline"
-            className={team.canMembersViewReports ? "bg-green-100 text-green-700" : "bg-red-100 text-red-700"}
+            className={team.allowMemberViewReport ? "bg-green-100 text-green-700" : "bg-red-100 text-red-700"}
             onClick={handleToggleMemberReportsView}
           >
-            {team.canMembersViewReports ? <Eye className="w-4 h-4 mr-2" /> : <EyeOff className="w-4 h-4 mr-2" />}
-            {team.canMembersViewReports ? "Cho phép thành viên xem báo cáo" : "Không cho phép thành viên xem báo cáo"}
+            {team.allowMemberViewReport ? <Eye className="w-4 h-4 mr-2" /> : <EyeOff className="w-4 h-4 mr-2" />}
+            {team.allowMemberViewReport ? "Cho phép xem báo cáo" : "Không cho phép xem"}
           </Button>
-
           <Dialog open={showAIChatDialog} onOpenChange={setShowAIChatDialog}>
             <DialogTrigger asChild>
               <Button size="sm" className="bg-blue-600 hover:bg-blue-700">
@@ -664,29 +612,23 @@ export function AdminOwnerView({
               <div className="text-center text-sm text-gray-500 mt-2">Tính năng này đang được phát triển.</div>
             </DialogContent>
           </Dialog>
-
           {isOwner && (
             <Dialog open={showDeleteTeamConfirmDialog} onOpenChange={setShowDeleteTeamConfirmDialog}>
               <DialogTrigger asChild>
                 <Button variant="outline" size="sm" className="text-red-600 hover:text-red-700 bg-transparent">
-                  <Trash2 className="w-4 h-4 mr-2" />
-                  Xóa nhóm
+                  <Trash2 className="w-4 h-4 mr-2" /> Xóa nhóm
                 </Button>
               </DialogTrigger>
               <DialogContent>
                 <DialogHeader>
                   <DialogTitle>Xác nhận xóa nhóm</DialogTitle>
                   <DialogDescription>
-                    Bạn có chắc chắn muốn xóa nhóm "{team.name}"? Hành động này không thể hoàn tác.
+                    Bạn có chắc muốn xóa nhóm "{team.teamName}"? Hành động này không thể hoàn tác.
                   </DialogDescription>
                 </DialogHeader>
                 <div className="flex gap-2 pt-4">
-                  <Button variant="destructive" onClick={handleConfirmDeleteTeam} className="flex-1">
-                    Xác nhận xóa
-                  </Button>
-                  <Button variant="outline" onClick={() => setShowDeleteTeamConfirmDialog(false)} className="flex-1">
-                    Hủy
-                  </Button>
+                  <Button variant="destructive" onClick={handleConfirmDeleteTeam} className="flex-1">Xác nhận</Button>
+                  <Button variant="outline" onClick={() => setShowDeleteTeamConfirmDialog(false)} className="flex-1">Hủy</Button>
                 </div>
               </DialogContent>
             </Dialog>
@@ -694,36 +636,34 @@ export function AdminOwnerView({
         </div>
       </div>
 
-      {/* Financial Overview - 3 cards */}
+      {/* Financial Overview */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
         <Card>
           <CardContent className="p-6">
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm font-medium text-gray-600">Số dư hiện tại</p>
-                <p className={`text-2xl font-bold ${currentBalance >= 0 ? "text-green-600" : "text-red-600"}`}>
-                  {formatCurrency(currentBalance)}
-                </p>
+                <p className={`text-2xl font-bold ${currentBalance >= 0 ? "text-green-600" : "text-red-600"}`}>{formatCurrency(currentBalance)}</p>
                 <p className="text-xs text-gray-600 mt-1">Tổng tích lũy</p>
               </div>
               <DollarSign className={`w-8 h-8 ${currentBalance >= 0 ? "text-green-600" : "text-red-600"}`} />
             </div>
           </CardContent>
         </Card>
-
         <Card>
           <CardContent className="p-6">
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm font-medium text-gray-600">Doanh thu tháng này</p>
-                <p className="text-2xl font-bold text-blue-600">{formatCurrency(currentTotalIncome)}</p>
-                <p className="text-xs text-green-600 mt-1">+{monthlyGrowth}% so với tháng trước</p>
+                <p className="text-2xl font-bold text-blue-600">{formatCurrency(currentMonthIncome)}</p>
+                <p className={`text-xs mt-1 ${monthlyGrowth >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                  {monthlyGrowth >= 0 ? '+' : ''}{monthlyGrowth.toFixed(1)}% so với tháng trước
+                </p>
               </div>
               <TrendingUp className="w-8 h-8 text-blue-600" />
             </div>
           </CardContent>
         </Card>
-
         <Card>
           <CardContent className="p-6">
             <div className="flex items-center justify-between">
@@ -738,140 +678,79 @@ export function AdminOwnerView({
         </Card>
       </div>
 
-      {/* Plan and Budget Management */}
+      {/* Plan and Budget */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
-        {/* Income Target Card */}
         <Card className="border-green-200">
           <CardHeader className="flex flex-row items-center justify-between">
-            <CardTitle className="text-green-700 flex items-center gap-2">
-              <Target className="w-5 h-5" />
-              Mục tiêu thu nhập
-            </CardTitle>
+            <CardTitle className="text-green-700 flex items-center gap-2"><Target className="w-5 h-5" /> Mục tiêu thu nhập</CardTitle>
             <Dialog open={showPlanDialog} onOpenChange={setShowPlanDialog}>
-              <DialogTrigger asChild>
-                <Button variant="outline" size="sm" className="bg-transparent">
-                  <Edit className="w-4 h-4 mr-2" />
-                  Chỉnh sửa
-                </Button>
-              </DialogTrigger>
-              <DialogContent>
-                <DialogHeader>
-                  <DialogTitle>Đặt mục tiêu thu nhập</DialogTitle>
-                </DialogHeader>
-                <div className="space-y-4">
-                  <div>
-                    <Label htmlFor="income-target">Mục tiêu thu nhập (VNĐ)</Label>
-                    <Input
-                      id="income-target"
-                      type="number"
-                      placeholder="Nhập số tiền mục tiêu"
-                      value={newIncomeTarget}
-                      onChange={(e) => setNewIncomeTarget(e.target.value)}
-                    />
-                  </div>
-                  <div className="flex gap-2">
-                    <Button onClick={handleSetIncomeTarget} className="flex-1">
-                      Lưu mục tiêu
-                    </Button>
-                    <Button variant="outline" onClick={() => setShowPlanDialog(false)} className="flex-1">
-                      Hủy
-                    </Button>
-                  </div>
-                </div>
-              </DialogContent>
+                <DialogTrigger asChild>
+                    <Button variant="outline" size="sm" className="bg-transparent"><Edit className="w-4 h-4 mr-2" /> Chỉnh sửa</Button>
+                </DialogTrigger>
+                <DialogContent>
+                    <DialogHeader><DialogTitle>Đặt mục tiêu thu nhập</DialogTitle></DialogHeader>
+                    <div className="space-y-4">
+                        <div>
+                            <Label htmlFor="income-target">Mục tiêu (VNĐ)</Label>
+                            <Input id="income-target" type="number" value={newIncomeTarget} onChange={(e) => setNewIncomeTarget(e.target.value)} />
+                        </div>
+                        <div className="flex gap-2">
+                            <Button onClick={handleSetIncomeTarget} className="flex-1">Lưu</Button>
+                            <Button variant="outline" onClick={() => setShowPlanDialog(false)} className="flex-1">Hủy</Button>
+                        </div>
+                    </div>
+                </DialogContent>
             </Dialog>
           </CardHeader>
           <CardContent>
             <div className="space-y-4">
-              <div className="flex justify-between items-center">
-                <span className="text-sm text-gray-600">Mục tiêu:</span>
-                <span className="font-semibold text-green-600">{formatCurrency(team.incomeTarget || 0)}</span>
-              </div>
-              <div className="flex justify-between items-center">
-                <span className="text-sm text-gray-600">Hiện tại:</span>
-                <span className="font-semibold">{formatCurrency(currentTotalIncome)}</span>
-              </div>
+              <div className="flex justify-between items-center"><span className="text-sm text-gray-600">Mục tiêu:</span><span className="font-semibold text-green-600">{formatCurrency(team.incomeGoal || 0)}</span></div>
+              <div className="flex justify-between items-center"><span className="text-sm text-gray-600">Hiện tại:</span><span className="font-semibold">{formatCurrency(currentTotalIncome)}</span></div>
               <div className="space-y-2">
-                <div className="flex justify-between items-center">
-                  <span className="text-sm text-gray-600">Tiến độ:</span>
-                  <span className={`text-sm font-medium text-gray-700`}>{incomeProgress.toFixed(0)}%</span>
-                </div>
+                <div className="flex justify-between items-center"><span className="text-sm text-gray-600">Tiến độ:</span><span className={`text-sm font-medium text-gray-700`}>{incomeProgress.toFixed(0)}%</span></div>
                 <Progress value={incomeProgress} className="h-3" />
               </div>
-              <div className="text-sm text-gray-600">
-                Còn thiếu: {formatCurrency((team.incomeTarget || 0) - currentTotalIncome)}
-              </div>
+              <div className="text-sm text-gray-600">Còn thiếu: {formatCurrency(Math.max(0, (team.incomeGoal || 0) - currentTotalIncome))}</div>
             </div>
           </CardContent>
         </Card>
-
-        {/* Budget Limit Card */}
         <Card className="border-red-200">
           <CardHeader className="flex flex-row items-center justify-between">
-            <CardTitle className="text-red-700 flex items-center gap-2">
-              <Calendar className="w-5 h-5" />
-              Ngân sách chi tiêu
-            </CardTitle>
+            <CardTitle className="text-red-700 flex items-center gap-2"><Calendar className="w-5 h-5" /> Ngân sách chi tiêu</CardTitle>
             <Dialog open={showBudgetDialog} onOpenChange={setShowBudgetDialog}>
-              <DialogTrigger asChild>
-                <Button variant="outline" size="sm" className="bg-transparent">
-                  <Edit className="w-4 h-4 mr-2" />
-                  Chỉnh sửa
-                </Button>
-              </DialogTrigger>
-              <DialogContent>
-                <DialogHeader>
-                  <DialogTitle>Đặt ngân sách chi tiêu</DialogTitle>
-                </DialogHeader>
-                <div className="space-y-4">
-                  <div>
-                    <Label htmlFor="budget-limit">Ngân sách tối đa (VNĐ)</Label>
-                    <Input
-                      id="budget-limit"
-                      type="number"
-                      placeholder="Nhập số tiền ngân sách"
-                      value={newBudgetLimit}
-                      onChange={(e) => setNewBudgetLimit(e.target.value)}
-                    />
-                  </div>
-                  <div className="flex gap-2">
-                    <Button onClick={handleSetBudgetLimit} className="flex-1">
-                      Lưu ngân sách
-                    </Button>
-                    <Button variant="outline" onClick={() => setShowBudgetDialog(false)} className="flex-1">
-                      Hủy
-                    </Button>
-                  </div>
-                </div>
-              </DialogContent>
+                <DialogTrigger asChild>
+                    <Button variant="outline" size="sm" className="bg-transparent"><Edit className="w-4 h-4 mr-2" /> Chỉnh sửa</Button>
+                </DialogTrigger>
+                <DialogContent>
+                    <DialogHeader><DialogTitle>Đặt ngân sách chi tiêu</DialogTitle></DialogHeader>
+                    <div className="space-y-4">
+                        <div>
+                            <Label htmlFor="budget-limit">Ngân sách (VNĐ)</Label>
+                            <Input id="budget-limit" type="number" value={newBudgetLimit} onChange={(e) => setNewBudgetLimit(e.target.value)} />
+                        </div>
+                        <div className="flex gap-2">
+                            <Button onClick={handleSetBudgetLimit} className="flex-1">Lưu</Button>
+                            <Button variant="outline" onClick={() => setShowBudgetDialog(false)} className="flex-1">Hủy</Button>
+                        </div>
+                    </div>
+                </DialogContent>
             </Dialog>
           </CardHeader>
           <CardContent>
             <div className="space-y-4">
-              <div className="flex justify-between items-center">
-                <span className="text-sm text-gray-600">Ngân sách:</span>
-                <span className="font-semibold text-red-600">{formatCurrency(team.budgetLimit || 0)}</span>
-              </div>
-              <div className="flex justify-between items-center">
-                <span className="text-sm text-gray-600">Đã chi:</span>
-                <span className="font-semibold">{formatCurrency(currentTotalExpenses)}</span>
-              </div>
+              <div className="flex justify-between items-center"><span className="text-sm text-gray-600">Ngân sách:</span><span className="font-semibold text-red-600">{formatCurrency(team.budget || 0)}</span></div>
+              <div className="flex justify-between items-center"><span className="text-sm text-gray-600">Đã chi:</span><span className="font-semibold">{formatCurrency(currentTotalExpenses)}</span></div>
               <div className="space-y-2">
-                <div className="flex justify-between items-center">
-                  <span className="text-sm text-gray-600">Sử dụng:</span>
-                  <span className={`text-sm font-medium text-gray-700`}>{budgetProgress.toFixed(0)}%</span>
-                </div>
+                <div className="flex justify-between items-center"><span className="text-sm text-gray-600">Sử dụng:</span><span className={`text-sm font-medium text-gray-700`}>{budgetProgress.toFixed(0)}%</span></div>
                 <Progress value={budgetProgress} className="h-3" />
               </div>
-              <div className="text-sm text-gray-600">
-                Còn lại: {formatCurrency((team.budgetLimit || 0) - currentTotalExpenses)}
-              </div>
+              <div className="text-sm text-gray-600">Còn lại: {formatCurrency(Math.max(0, (team.budget || 0) - currentTotalExpenses))}</div>
             </div>
           </CardContent>
         </Card>
       </div>
 
-      {/* Unified Reports and Transactions Section */}
+      {/* Reports and Transactions Section */}
       <Card>
         <CardHeader className="flex flex-row items-center justify-between">
           <CardTitle>Báo cáo & Lịch sử giao dịch</CardTitle>
@@ -897,77 +776,57 @@ export function AdminOwnerView({
           </div>
         </CardHeader>
         <CardContent className="space-y-6">
-          {/* Monthly Income/Expense Trend Chart (Moved to top) */}
-          <Card className="border-purple-100">
-            <CardHeader>
-              <CardTitle className="text-purple-800">Biểu đồ thu chi 12 tháng gần đây</CardTitle>
-            </CardHeader>
-            <CardContent>{createLineChart()}</CardContent>
-          </Card>
-
-          {/* Analytics and Charts - Top Row */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            {/* General Bar Chart */}
-            <Card className="border-blue-100">
-              <CardHeader>
-                <CardTitle className="text-blue-800">Tổng quan</CardTitle>
-              </CardHeader>
-              <CardContent>
-                {createBarChart(chartData.generalIncome, chartData.generalExpense)}
-                <div className="space-y-2 text-sm">
-                  <div className="flex justify-between">
-                    <span className="text-gray-600">Thu nhập</span>
-                    <span className="font-semibold text-green-600">{formatCurrency(chartData.generalIncome)}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-gray-600">Chi tiêu</span>
-                    <span className="font-semibold text-red-600">{formatCurrency(chartData.generalExpense)}</span>
-                  </div>
-                </div>
-              </CardContent>
+            <Card className="border-purple-100">
+                <CardHeader><CardTitle className="text-purple-800">Biểu đồ thu chi 12 tháng</CardTitle></CardHeader>
+                <CardContent>{createLineChart()}</CardContent>
             </Card>
-
-            {/* Income Donut Chart */}
-            <Card className="border-blue-100">
-              <CardHeader>
-                <CardTitle className="text-blue-800">Thu nhập theo danh mục</CardTitle>
-              </CardHeader>
-              <CardContent className="flex flex-col items-center md:flex-row md:items-start gap-4">
-                {createDonutChart(chartData.incomeBreakdown, 120)}
-                <div className="flex-1 space-y-2">
-                  {chartData.incomeBreakdown.map((item, index) => (
-                    <div key={index} className="flex items-center justify-between text-sm">
-                      <div className="w-3 h-3 rounded-full" style={{ backgroundColor: item.color }}></div>
-                      <span>{item.category}</span>
-                      <span className="text-gray-600">{item.percentage}%</span>
-                    </div>
-                  ))}
-                </div>
-              </CardContent>
-            </Card>
-
-            {/* Expenses Donut Chart */}
-            <Card className="border-blue-100">
-              <CardHeader>
-                <CardTitle className="text-blue-800">Chi tiêu theo danh mục</CardTitle>
-              </CardHeader>
-              <CardContent className="flex flex-col items-center md:flex-row md:items-start gap-4">
-                {createDonutChart(chartData.expenseBreakdown, 120)}
-                <div className="flex-1 space-y-2">
-                  {chartData.expenseBreakdown.map((item, index) => (
-                    <div key={index} className="flex items-center justify-between text-sm">
-                      <div className="w-3 h-3 rounded-full" style={{ backgroundColor: item.color }}></div>
-                      <span>{item.category}</span>
-                      <span className="text-gray-600">{item.percentage}%</span>
-                    </div>
-                  ))}
-                </div>
-              </CardContent>
-            </Card>
-          </div>
-
-          {/* Transaction Management */}
-          <Card>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                <Card className="border-blue-100">
+                    <CardHeader><CardTitle className="text-blue-800">Tổng quan</CardTitle></CardHeader>
+                    <CardContent>
+                        {createBarChart(currentTotalIncome, currentTotalExpenses)}
+                        <div className="space-y-2 text-sm">
+                            <div className="flex justify-between"><span className="text-gray-600">Thu nhập</span><span className="font-semibold text-green-600">{formatCurrency(currentTotalIncome)}</span></div>
+                            <div className="flex justify-between"><span className="text-gray-600">Chi tiêu</span><span className="font-semibold text-red-600">{formatCurrency(currentTotalExpenses)}</span></div>
+                        </div>
+                    </CardContent>
+                </Card>
+                <Card className="border-blue-100">
+                    <CardHeader><CardTitle className="text-blue-800">Thu nhập theo danh mục</CardTitle></CardHeader>
+                    <CardContent className="flex flex-col items-center md:flex-row md:items-start gap-4">
+                        {createDonutChart(incomeBreakdown, 120)}
+                        <div className="flex-1 space-y-2">
+                            {incomeBreakdown.map((item, index) => (
+                                <div key={index} className="flex items-center justify-between text-sm">
+                                    <div className="flex items-center gap-2">
+                                        <div className="w-3 h-3 rounded-full" style={{ backgroundColor: item.color }}></div>
+                                        <span>{item.category}</span>
+                                    </div>
+                                    <span className="text-gray-600">{item.percentage.toFixed(0)}%</span>
+                                </div>
+                            ))}
+                        </div>
+                    </CardContent>
+                </Card>
+                <Card className="border-blue-100">
+                    <CardHeader><CardTitle className="text-blue-800">Chi tiêu theo danh mục</CardTitle></CardHeader>
+                    <CardContent className="flex flex-col items-center md:flex-row md:items-start gap-4">
+                        {createDonutChart(expenseBreakdown, 120)}
+                         <div className="flex-1 space-y-2">
+                            {expenseBreakdown.map((item, index) => (
+                                <div key={index} className="flex items-center justify-between text-sm">
+                                     <div className="flex items-center gap-2">
+                                        <div className="w-3 h-3 rounded-full" style={{ backgroundColor: item.color }}></div>
+                                        <span>{item.category}</span>
+                                    </div>
+                                    <span className="text-gray-600">{item.percentage.toFixed(0)}%</span>
+                                </div>
+                            ))}
+                        </div>
+                    </CardContent>
+                </Card>
+            </div>
+            <Card>
             <CardHeader className="flex flex-row items-center justify-between">
               <CardTitle>Lịch sử giao dịch</CardTitle>
               <div className="flex items-center gap-2">

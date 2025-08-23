@@ -277,7 +277,8 @@ const calculateBalance = async (teamId: number) => {
 
 const getTeamDetails = async (teamId: number, userId: number) => {
   if (!teamId || !userId) bad('Thiếu teamId hoặc userId', 400);
-  await ensureAccessByRoles(teamId, userId, ['owner', 'admin', 'member'], false);
+  // SỬA LẠI QUYỀN: Cho phép cả 'deputy' truy cập
+  await ensureAccessByRoles(teamId, userId, ['owner', 'admin', 'deputy', 'member'], false);
   const team = await TeamModel.getDetails(teamId, userId);
   if (!team) {
     bad('Team không tồn tại', 404);
@@ -285,6 +286,8 @@ const getTeamDetails = async (teamId: number, userId: number) => {
   const balance = await calculateBalance(teamId);
   const budgetProgress = team.budget ? (balance.totalExpenses / Number(team.budget)) * 100 : 0;
   const incomeProgress = team.incomeGoal ? (balance.totalIncome / Number(team.incomeGoal)) * 100 : 0;
+  
+  // Dữ liệu trả về đã tự động chứa teamMembers từ teamModel
   return {
     ...team,
     balance: balance.balance,
@@ -292,6 +295,19 @@ const getTeamDetails = async (teamId: number, userId: number) => {
     incomeProgress: incomeProgress.toFixed(2) + '%',
   };
 }
+
+const createTeam :  RequestHandler = async (req, res) => {
+  try {
+      const { name } = req.body;
+      const userId = (req as AuthenticatedRequest).user.id;
+      const newTeam = await TeamService.createNewTeam({ name, ownerId: userId });
+      res.status(201).json(newTeam);
+  } catch (error: any) { // Thêm kiểu 'any' cho error
+      console.error('Error creating team:', error);
+      // Trả về status code của lỗi nếu có, mặc định là 500
+      res.status(error.statusCode || 500).json({ message: error.message || 'Server error' });
+  }
+};
 
 // Gom export như code base của bạn
 export const TeamService = {

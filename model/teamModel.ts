@@ -274,6 +274,7 @@ export const TeamModel = {
     try {
       const team = await prisma.teams.findUnique({
         where: { id: teamId },
+        // SỬA LẠI SELECT ĐỂ LẤY THÊM THÔNG TIN THÀNH VIÊN
         select: {
           id: true,
           teamName: true,
@@ -285,6 +286,22 @@ export const TeamModel = {
           createdAt: true,
           updatedAt: true,
           ownerId: true,
+          // THÊM PHẦN NÀY ĐỂ LẤY DANH SÁCH THÀNH VIÊN
+          teamMembers: {
+            select: {
+              role: true,
+              joinedAt: true,
+              // SỬA LẠI TÊN QUAN HỆ CHO ĐÚNG
+              User: { // Dùng "User" viết hoa thay vì "user" viết thường
+                select: {
+                  id: true,
+                  firstName: true,
+                  lastName: true,
+                  email: true,
+                }
+              }
+            }
+          }
         }
       });
 
