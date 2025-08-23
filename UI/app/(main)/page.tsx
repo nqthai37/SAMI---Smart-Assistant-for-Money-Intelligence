@@ -150,7 +150,7 @@ export default function Homepage() {
                 return (
                   <Card
                     key={team.id}
-                    className="hover:shadow-md transition-shadow cursor-pointer"
+                    className="hover:shadow-md transition-shadow cursor-pointer max-w-[500px] w-full"
                     onClick={() => handleTeamClick(team)}
                   >
                     <CardContent className="p-6">
@@ -159,7 +159,12 @@ export default function Homepage() {
                               <div className={`w-4 h-4 rounded-full ${team.color} mt-1 flex-shrink-0`}></div>
                               <div className="flex-1 min-w-0">
                                   <div className="flex items-center gap-3 mb-2">
-                                      <h3 className="font-semibold text-gray-900 truncate" title={team.teamName}>{team.teamName}</h3>
+                                      <h3
+                                        className="font-semibold text-gray-900 truncate max-w-[220px]"
+                                        title={team.teamName}
+                                      >
+                                        {team.teamName}
+                                      </h3>
                                       <Badge variant="secondary" className="text-xs flex-shrink-0">
                                       {team.currentUserRole}
                                       </Badge>
