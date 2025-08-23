@@ -128,6 +128,7 @@ export const showTeamList = async (
       teamName: team.teamName,
       // description: team.description,
       // color: team.color || 'bg-blue-500',
+      currency: team.currency,
       createdAt: team.createdAt,
       updatedAt: team.updatedAt,
       totalIncome,

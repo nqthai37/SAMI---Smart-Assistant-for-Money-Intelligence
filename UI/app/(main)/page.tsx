@@ -1,6 +1,6 @@
 "use client"
 
-import React, { useState, useEffect } from "react"; // SỬA: Import React explicit và thêm React type
+import React, { useState, useEffect } from "react"; // SỬA: Import React eplicit và thêm React type
 import {
   Search,
   Plus,
@@ -110,25 +110,26 @@ export default function Homepage() {
     }
   };
 
-  const formatCurrency = (amount: number) => {
-    return new Intl.NumberFormat("vi-VN", { style: "currency", currency: "VND" }).format(amount);
+  const formatCurrency = (amount: number, currencyCode: string) => {
+    console.log({amount, currencyCode})
+    return new Intl.NumberFormat("vi-VN", { style: "currency", currency: currencyCode }).format(amount);
   };
 
   const handleBackToList = () => {
     setCurrentView("list");
     setSelectedTeam(null);
+    fetchInitialData(); // Tải lại danh sách nhóm khi quay về
   };
-
   const filteredTeams = teams.filter((team: Team) => // SỬA: Thêm type cho parameter
     team.teamName && team.teamName.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
   // SỬA: Thay đổi type parameter cho phù hợp với AdminOwnerView
-  const handleUpdateTeam = (updatedTeam: Team) => { // SỬA: Đổi type từ Partial<TeamDetails> thành Team
+  const handleUpdateTeam = (updatedTeam: Team) => { 
     if (!selectedTeam) return;
-    setSelectedTeam((prev: TeamDetails | null) => ({ // SỬA: Thêm type cho prev
+    setSelectedTeam((prev: TeamDetails | null) => ({ 
       ...prev!, 
-      ...updatedTeam 
+      ...updatedTeam
     }));
     // Gọi API để lưu thay đổi ở đây, ví dụ:
     // api.patch(`/teams/${selectedTeam.id}`, updatedData);
@@ -173,7 +174,7 @@ export default function Homepage() {
       />;
     }
     if (selectedTeam?.currentUserMode === "Deputy") {
-      return <DeputyView {...commonProps} />; // DeputyView cũng cần các hàm update tương tự
+      return <DeputyView {...commonProps} onUpdateTeam={handleUpdateTeam} />; // DeputyView cũng cần các hàm update tương tự
     }
     return <MemberView 
       {...commonProps} 
@@ -212,10 +213,11 @@ export default function Homepage() {
             {filteredTeams.length === 0 ? (
               <p className="text-center text-gray-500 py-8">Không tìm thấy nhóm nào hoặc bạn chưa tham gia nhóm nào.</p>
             ) : (
-              filteredTeams.map((team: Team) => { // SỬA: Thêm type cho team
+              filteredTeams.map((team) => { // SỬA: Thêm type cho team
                 // Sử dụng balance có sẵn từ API
                 const balance = team.balance || 0;
                 const numberOfTeamMembers = team.members?.length || 0;
+                console.log(team);
                 
                 // console.log(`🎨 Rendering team ${team.teamName}:`, {
                 //   teamId: team.id,
@@ -266,7 +268,7 @@ export default function Homepage() {
                               <div
                               className={`text-2xl font-bold ${balance >= 0 ? "text-green-600" : "text-red-600"}`}
                               >
-                                {formatCurrency(balance)}
+                                {formatCurrency(balance, team.currency||'VND')}
                               </div>
                           </div>
                       </div>

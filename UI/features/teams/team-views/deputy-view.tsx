@@ -14,25 +14,31 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { RoleSwitcher } from "../components/role-switcher"
 import { useAuth } from "@/lib/auth"; // Import hook useAuth
 import type { TeamDetails, TeamMember, UserRole } from "../../../types/user"; // Import type chi tiết
+import {api} from '@/lib/api';
+import type { Team } from "../../../types/user"
+import { toast } from "sonner";
 
 interface DeputyViewProps {
   team: TeamDetails; // Dùng type chi tiết
   onModeChange: (mode: any) => void;
+  onUpdateTeam: (updatedTeam: Team) => void;
 }
 
-export function DeputyView({ team, onModeChange }: DeputyViewProps) {
-  const { user } = useAuth(); // Lấy thông tin user đang đăng nhập
+export function DeputyView({ team, onModeChange, onUpdateTeam }: DeputyViewProps) {
+  const { user, token } = useAuth(); // Lấy thông tin user đang đăng nhập
 
   const [showAddMemberDialog, setShowAddMemberDialog] = useState(false)
   const [showKickMemberDialog, setShowKickMemberDialog] = useState(false)
   const [showRenameDialog, setShowRenameDialog] = useState(false)
+  const [newWorkspaceName, setNewWorkspaceName] = useState(team.teamName);
   const [showCurrencyDialog, setShowCurrencyDialog] = useState(false)
   const [showCategoriesDialog, setShowCategoriesDialog] = useState(false)
   const [showEditPermissionDialog, setShowEditPermissionDialog] = useState(false)
   const [selectedMember, setSelectedMember] = useState<TeamMember | null>(null)
   const [selectedMemberForEdit, setSelectedMemberForEdit] = useState<TeamMember | null>(null)
   const [newMemberEmail, setNewMemberEmail] = useState("")
-  const [newWorkspaceName, setNewWorkspaceName] = useState(team.teamName); // Sửa team.name -> team.teamName
+  const [isSendingInvite, setIsSendingInvite] = useState(false)
+  const [inviteError, setInviteError] = useState<string | null>(null)
   const [selectedCurrency, setSelectedCurrency] = useState("VND")
   const [categories, setCategories] = useState<CategoryItem[]>([
     { name: "Ăn uống", icon: "🍽️" },
@@ -62,23 +68,15 @@ export function DeputyView({ team, onModeChange }: DeputyViewProps) {
 
   // Check if current user can kick a member based on ACTUAL role (not current mode)
   const canKickMember = (memberRole: UserRole) => {
-    const currentUserActualRole = team.currentUserRole // This is the actual role
+    const currentUserActualRole = team.currentUserRole
     const currentRoleIndex = roleHierarchy.indexOf(currentUserActualRole)
     const memberRoleIndex = roleHierarchy.indexOf(memberRole)
-
-    // Can only kick members with lower hierarchy (higher index)
     return currentRoleIndex < memberRoleIndex
   }
 
   // Check if current user can modify permissions based on ACTUAL role
   const canModifyPermissions = (memberRole: UserRole) => {
     const currentUserActualRole = team.currentUserRole
-
-    // Only Owner and Admin can modify permissions
-    if (currentUserActualRole !== "Owner" && currentUserActualRole !== "Admin") {
-      return false
-    }
-
     const currentRoleIndex = roleHierarchy.indexOf(currentUserActualRole)
     const memberRoleIndex = roleHierarchy.indexOf(memberRole)
 
@@ -86,31 +84,105 @@ export function DeputyView({ team, onModeChange }: DeputyViewProps) {
     return currentRoleIndex < memberRoleIndex
   }
 
-  const handleAddMember = () => {
-    if (newMemberEmail) {
-      // console.log("Adding member:", newMemberEmail)
-      setNewMemberEmail("")
-      setShowAddMemberDialog(false)
+  // Invite member via email
+  const handleAddMember = async () => {
+    if (!newMemberEmail) {
+      setInviteError("Vui lòng nhập email.");
+      return;
+    }
+
+    if (!token) {
+        setInviteError("Phiên đăng nhập không hợp lệ. Vui lòng đăng nhập lại.");
+        return;
+    }
+    
+    setIsSendingInvite(true);
+    setInviteError(null);
+
+    try {
+      // Giả sử team.id có sẵn trong props `team`
+      const response = await fetch(`/api/teams/${team.id}/send-invite`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          // Giả sử bạn có một cơ chế để lấy token xác thực, ví dụ:
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({ email: newMemberEmail }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || 'Không thể gửi lời mời. Vui lòng thử lại.');
+      }
+
+      setShowAddMemberDialog(false); // Đóng dialog
+      setNewMemberEmail(""); 
+
+    } catch (error: any) {
+      console.error('Error sending invite:', error);
+      setInviteError(error.message);
+    } finally {
+      setIsSendingInvite(false);
     }
   }
 
-  const handleKickMember = () => {
-    if (selectedMember) {
-      // console.log("Kicking member:", selectedMember.name)
-      setShowKickMemberDialog(false)
-      setSelectedMember(null)
+  const handleKickMember = async () => {
+    
+  }
+
+  const handleRenameWorkspace = async () => {
+    // 1. Kiểm tra xem tên mới có hợp lệ không
+    if (newWorkspaceName.trim() && newWorkspaceName !== team.teamName) {
+      try {
+        // 2. Gọi API để cập nhật tên
+        await api.patch(`/teams/${team.id}/name`, { name: newWorkspaceName });
+
+        // 3. Cập nhật state ở component cha bằng cách gửi toàn bộ object team đã được cập nhật
+        onUpdateTeam({ ...team, teamName: newWorkspaceName });
+
+        // 4. Hiển thị thông báo thành công
+        toast.success("Tên nhóm đã được cập nhật!");
+
+        // 5. Đóng dialog và reset input
+        setShowRenameDialog(false);
+        setNewWorkspaceName(""); // Reset lại giá trị
+      } catch (error: any) {
+        // 6. Xử lý lỗi nếu có
+        toast.error("Lỗi: " + (error.response?.data?.message || error.message));
+      }
+    } else if (newWorkspaceName === team.teamName) {
+        setShowRenameDialog(false); // Nếu tên không đổi thì chỉ cần đóng dialog
+    } else {
+        toast.error("Tên nhóm không được để trống.");
     }
-  }
+  };
 
-  const handleRenameWorkspace = () => {
-    // console.log("Renaming workspace to:", newWorkspaceName)
-    setShowRenameDialog(false)
-  }
+  const handleSetCurrency = async () => {
+    if (selectedCurrency === team.currency) {
+      setShowCurrencyDialog(false);
+      return;
+    }
 
-  const handleSetCurrency = () => {
-    // console.log("Setting currency to:", selectedCurrency)
-    setShowCurrencyDialog(false)
-  }
+    try {
+      // 2. Gọi API PATCH để cập nhật tiền tệ
+      await api.patch(`/teams/${team.id}/currency`, {
+        currency: selectedCurrency,
+      });
+
+      // 3. Cập nhật state ở component cha
+      // Chú ý: Bạn cần truyền onUpdateTeam cho component DeputyView để sử dụng được ở đây
+      onUpdateTeam({ ...team, currency: selectedCurrency });
+
+      // 4. Hiển thị thông báo thành công
+      toast.success("Tiền tệ đã được cập nhật thành công!");
+      setShowCurrencyDialog(false);
+
+    } catch (error: any) {
+      console.error("Lỗi khi cập nhật tiền tệ:", error);
+      toast.error("Lỗi: " + (error.response?.data?.message || error.message));
+    }
+  };
 
   const handleAddCategory = () => {
     if (newCategoryName && newCategoryIcon && !categories.some((cat) => cat.name === newCategoryName)) {
@@ -213,12 +285,13 @@ export function DeputyView({ team, onModeChange }: DeputyViewProps) {
                         onChange={(e) => setNewMemberEmail(e.target.value)}
                       />
                     </div>
+                    {inviteError && <p className="text-sm text-red-600">{inviteError}</p>}
                     <p className="text-sm text-gray-600">Thành viên mới sẽ được thêm với quyền "Member"</p>
                     <div className="flex gap-2">
-                      <Button onClick={handleAddMember} className="flex-1">
-                        Gửi lời mời
+                      <Button onClick={handleAddMember} className="flex-1" disabled={isSendingInvite}>
+                        {isSendingInvite ? "Đang gửi..." : "Gửi lời mời"}
                       </Button>
-                      <Button variant="outline" onClick={() => setShowAddMemberDialog(false)} className="flex-1">
+                      <Button variant="outline" onClick={() => setShowAddMemberDialog(false)} className="flex-1" disabled={isSendingInvite}>
                         Hủy
                       </Button>
                     </div>
@@ -231,7 +304,7 @@ export function DeputyView({ team, onModeChange }: DeputyViewProps) {
                 {(teamMembers || []).map((member) => {
                   const config = roleConfig[member.role.slice(0, 1).toUpperCase() + member.role.slice(1) as UserRole]
                   const Icon = config.icon
-                  const canKick = canKickMember(member.role)
+                  const canKick = canKickMember(member.role);
                   const canModify = canModifyPermissions(member.role)
                   const isThisMemberTheCurrentUser = isCurrentUser(member); // Dùng hàm đã sửa
 
@@ -335,7 +408,7 @@ export function DeputyView({ team, onModeChange }: DeputyViewProps) {
                 <div className="space-y-4">
                   <div>
                     <Label htmlFor="workspace-name">Tên workspace hiện tại</Label>
-                    <p className="text-sm text-gray-600 mt-1">{team.name}</p>
+                    <p className="text-sm text-gray-600 mt-1">{team.teamName}</p>
                   </div>
                   <Dialog open={showRenameDialog} onOpenChange={setShowRenameDialog}>
                     <DialogTrigger asChild>
@@ -382,7 +455,7 @@ export function DeputyView({ team, onModeChange }: DeputyViewProps) {
                 <div className="space-y-4">
                   <div>
                     <Label>Tiền tệ hiện tại</Label>
-                    <p className="text-sm text-gray-600 mt-1">VND (Việt Nam Đồng)</p>
+                    <p className="text-sm text-gray-600 mt-1">{team.currency}</p>
                   </div>
                   <Dialog open={showCurrencyDialog} onOpenChange={setShowCurrencyDialog}>
                     <DialogTrigger asChild>

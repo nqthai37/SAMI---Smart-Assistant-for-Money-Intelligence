@@ -50,6 +50,7 @@ export interface Team {
   totalExpenses?: number;
   totalIncome?: number;
   balance?: number;
+  currency?: string;
   currentUserRole?: string;
   currentUserMode?: string;
 }
@@ -65,4 +66,5 @@ export interface TeamDetails extends Team {
   balance: number;
   currentUserRole: UserRole; // Đảm bảo đây là UserRole, không phải string
   currentUserMode: UserMode; // THÊM DÒNG NÀY
+  currency: string;
 }

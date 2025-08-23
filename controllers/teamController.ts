@@ -148,10 +148,10 @@ const sendInviteEmail: RequestHandler = async (req, res) => {
 
 const handleInviteResponse: RequestHandler = async (req, res) => {
   try {
-    const { inviteToken, response, email } = req.body;
+    const { inviteToken, email } = req.body;
     
     // Xử lý phản hồi lời mời
-    const result = await TeamService.handleInviteResponse(inviteToken, response, email);
+    const result = await TeamService.handleInviteResponse(inviteToken, email);
     
     return res.status(200).json(result);
   }
@@ -178,6 +178,29 @@ const getTeamDetails: RequestHandler = async (req, res) => {
   }
 }
 
+const removeMember: RequestHandler = async (req, res) => {
+  try {
+    const teamId = Number(req.params.id);
+    const memberId = Number(req.params.memberId);
+    const userId = (req as AuthenticatedRequest).user.id;
+
+    if (Number.isNaN(teamId) || Number.isNaN(memberId)) {
+      return res.status(400).json({ message: 'Invalid team id or member id' });
+    }
+
+    await TeamService.removeMember(teamId, memberId, userId);
+    return res.status(204).send();
+  } catch (error: any) {
+    console.error('Error removing member from team:', error);
+
+    const status = error?.statusCode ?? 500;
+    const msg =
+      error?.message ??
+      (status === 500 ? 'Server error' : 'Unable to remove member');
+    return res.status(status).json({ message: msg });
+  }
+}
+
 export {
     createTeam,
     deleteTeam,
@@ -190,4 +213,5 @@ export {
     sendInviteEmail,
     handleInviteResponse,
     getTeamDetails,
+    removeMember,
 };

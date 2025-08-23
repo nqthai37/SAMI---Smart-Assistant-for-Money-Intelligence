@@ -3,6 +3,7 @@ import { PrismaClient, Prisma } from '@prisma/client';
 import type { teams as Team } from '@prisma/client';
 import { UserModel } from './UserModel.js'; // Giả sử bạn có một UserModel để tìm người dùng theo email
 import  EmailService from '../services/emailService.js'; // Giả sử bạn có một EmailService để gửi email
+import { removeMember } from '../controllers/teamController.js';
 const prisma = new PrismaClient();
 
 export type TeamCreationData = {
@@ -205,12 +206,11 @@ export const TeamModel = {
     }
   },
 
-  findInviteByToken: async (inviteToken: string, email: string) => {
+  findInviteByToken: async (inviteToken: string) => {
     try {
       return await prisma.teamInvitations.findFirst({
         where: {
           token: inviteToken,
-          inviteeEmail: email,
           status: 'pending',
           expiresAt: {
             gt: new Date() // Only get non-expired invitations
@@ -314,5 +314,19 @@ export const TeamModel = {
       console.error('Error getting team details:', error);
       throw new Error('Không thể lấy thông tin team.');
     }
-  }
+  },
+
+  removeMember: async (teamId: number, memberId: number) => {
+    try {
+      return await prisma.teamMembers.deleteMany({
+        where: {
+          teamId,
+          userId: memberId
+        }
+      });
+    } catch (error) {
+      console.error('Error removing member:', error);
+      throw new Error('Không thể xóa thành viên khỏi nhóm.');
+    }
+  },
 };

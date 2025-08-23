@@ -43,9 +43,12 @@ router.patch('/:id/report-permission', TeamController.permitMemberViewReport);
 router.post('/:id/send-invite', TeamController.sendInviteEmail);
 
 // POST /api/teams/:id/send-invite/response - Xử lý phản hồi lời mời
-router.post('/:id/send-invite/response', TeamController.handleInviteResponse);
+router.post('/response', TeamController.handleInviteResponse);
 
 // GET /api/teams/:teamId/transactions - Lấy danh sách giao dịch của một team
 router.get('/:teamId/transactions', TransactionController.getTeamTransactions);
+
+// Xóa thành viên khỏi team
+router.delete('/:id/members/:memberId', TeamController.removeMember);
 
 export default router;

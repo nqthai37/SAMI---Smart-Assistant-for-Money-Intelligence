@@ -191,7 +191,7 @@ const sendInviteEmail=async (teamId: number, email: string, inviterID: number) =
 
   // 3) Gửi email mời
   const inviterName = inviter.firstName || inviter.email || 'Người mời';
-  const emailResult = await EmailService.sendTeamInvitation(teamId, email, team.teamName, inviterName);
+  const emailResult = await EmailService.sendTeamInvitation(teamId, email, team.teamName, inviterName, inviteToken);
   if (!emailResult.success) {
     bad('Không thể gửi email mời', 500);
   }
@@ -199,35 +199,25 @@ const sendInviteEmail=async (teamId: number, email: string, inviterID: number) =
   return { success: true, message: 'Email mời đã được gửi.' };
 }
 
-const handleInviteResponse = async (inviteToken: string, response: 'accept' | 'reject', email: string) => {
-  if (!inviteToken || !response || !email) {
-    bad('Thiếu inviteToken, response hoặc email', 400);
+const handleInviteResponse = async (inviteToken: string, email: string) => {
+  if (!inviteToken || !email) {
+    bad('Thiếu inviteToken hoặc email', 400);
   }
   // 1) Tìm lời mời theo token
-  const invitation = await TeamModel.findInviteByToken(inviteToken, email);
+  const invitation = await TeamModel.findInviteByToken(inviteToken);
   if (!invitation) {
     bad('Lời mời không tồn tại hoặc đã hết hạn', 404);
   }
   // 2) Cập nhật trạng thái lời mời
-  if (response === 'accept') {
     // Thêm người dùng vào team
-    const user = await UserModel.findByEmail(email);
-    if (!user) {
-      bad('Người dùng không tồn tại', 404);
-    }
-    await TeamModel.addMember(invitation.teamId, user.id, 'member'); // Giả sử role là 'member'
-    // Cập nhật trạng thái lời mời
-    await TeamModel.updateInvitationStatus(invitation.id, 'accepted');
-    return { success: true, message: 'Bạn đã chấp nhận lời mời tham gia team.' };
-  }
-  else if (response === 'reject') {
-    // Cập nhật trạng thái lời mời là rejected
-    await TeamModel.updateInvitationStatus(invitation.id, 'rejected');
-    return { success: true, message: 'Bạn đã từ chối lời mời tham gia team.' };
-  } else {
-    bad('Response không hợp lệ. Chỉ chấp nhận "accept" hoặc "reject".', 400);
-  }
-  return { success: false, message: 'Không thể xử lý lời mời.' };
+  const user = await UserModel.findByEmail(email);
+  if (!user) {
+    bad('Người dùng không tồn tại', 404);
+ }
+  await TeamModel.addMember(invitation.teamId, user.id, 'member'); // Giả sử role là 'member'
+  // Cập nhật trạng thái lời mời
+  await TeamModel.updateInvitationStatus(invitation.id, 'accepted');
+  return { success: true, message: 'Bạn đã chấp nhận lời mời tham gia team.' };
 }
 
 const calculateBalance = async (teamId: number) => {
@@ -296,7 +286,7 @@ const getTeamDetails = async (teamId: number, userId: number) => {
   };
 }
 
-const createTeam :  RequestHandler = async (req, res) => {
+const createTeam = async (req, res) => {
   try {
       const { name } = req.body;
       const userId = (req as AuthenticatedRequest).user.id;
@@ -308,6 +298,16 @@ const createTeam :  RequestHandler = async (req, res) => {
       res.status(error.statusCode || 500).json({ message: error.message || 'Server error' });
   }
 };
+
+const removeMember = async (teamId: number, memberId: number, userId: number) => {
+  const user = await UserModel.findById(userId);
+  const team = await TeamModel.getBasic(teamId);
+  await prisma?.teamMembers.findFirst({
+    where: { teamId, userId },
+    select: { role: true }
+  });
+
+}
 
 // Gom export như code base của bạn
 export const TeamService = {
@@ -322,4 +322,5 @@ export const TeamService = {
   sendInviteEmail,
   handleInviteResponse,
   getTeamDetails,
+  removeMember,
 };

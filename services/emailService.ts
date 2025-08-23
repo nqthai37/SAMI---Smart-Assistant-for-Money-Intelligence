@@ -98,9 +98,10 @@ class EmailService {
     teamId: number,
     userEmail: string,
     teamName: string,
-    inviterName: string
+    inviterName: string,
+    resetToken: string
   ): Promise<EmailResult> {
-    const htmlContent = this.generateTeamInvitationTemplate({ teamId, userEmail, teamName, inviterName });
+    const htmlContent = this.generateTeamInvitationTemplate({ teamId, userEmail, teamName, inviterName, resetToken });
 
     return await this.sendEmail({
       to: userEmail,
@@ -226,6 +227,7 @@ class EmailService {
   }
 
   private generateTeamInvitationTemplate(data: EmailTemplateData): string {
+    const inviteLink = `${process.env.FRONTEND_URL}/login?inviteToken=${data.resetToken}`;
     return `
       <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; background: #f9f9f9; padding: 20px;">
         <div style="background: white; padding: 30px; border-radius: 10px; box-shadow: 0 2px 10px rgba(0,0,0,0.1);">
@@ -251,7 +253,7 @@ class EmailService {
           </div>
           
           <div style="text-align: center; margin: 30px 0;">
-            <a href="${process.env.FRONTEND_URL}/accept-invitation" 
+            <a href="${inviteLink}" 
                style="background: #4CAF50; color: white; padding: 15px 30px; text-decoration: none; border-radius: 8px; font-weight: bold; display: inline-block;">
               Accept Invitation
             </a>

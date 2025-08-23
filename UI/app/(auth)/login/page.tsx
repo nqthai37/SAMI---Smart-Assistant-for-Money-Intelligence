@@ -1,14 +1,14 @@
 "use client"
 
 import type React from "react"
-import { useState } from "react"
+import { useState, useEffect } from "react" // 1. Import useEffect
+import { useSearchParams, useRouter } from "next/navigation" // 2. Import useSearchParams
 import { Eye, EyeOff, DollarSign } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Checkbox } from "@/components/ui/checkbox"
 import { useAuth } from "@/lib/auth"
-import { useRouter } from "next/navigation"
 import { toast } from "sonner"
 import Link from "next/link"
 
@@ -19,22 +19,22 @@ export default function LoginPage() {
   const [rememberMe, setRememberMe] = useState(false)
   const [isLoading, setIsLoading] = useState(false)
 
-  const { login } = useAuth()
+  // 3. Lấy thêm user và token từ useAuth
+  const { login, user, token } = useAuth() 
   const router = useRouter()
+  const searchParams = useSearchParams()
 
+  // 4. Sửa đổi hàm handleLogin
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault()
     setIsLoading(true)
 
     try {
       const success = await login(email, password)
-
-      if (success) {
-        toast.success("Đăng nhập thành công!")
-        router.push("/") // Chuyển hướng về trang chủ
-      } else {
+      if (!success) {
         toast.error("Email hoặc mật khẩu không đúng!")
       }
+      // Bỏ phần chuyển hướng ở đây, useEffect sẽ xử lý
     } catch (error) {
       console.error("Login error:", error)
       toast.error("Có lỗi xảy ra, vui lòng thử lại!")
@@ -42,6 +42,54 @@ export default function LoginPage() {
       setIsLoading(false)
     }
   }
+
+  // 5. Thêm useEffect để xử lý lời mời và chuyển hướng
+  useEffect(() => {
+    // Chỉ chạy khi người dùng đã được xác thực (có user và token)
+    if (user && token) {
+      const inviteToken = searchParams.get('inviteToken');
+
+      if (inviteToken) {
+        toast.info("Đang xử lý lời mời tham gia nhóm...");
+        acceptInvitation(inviteToken, user.email, token);
+      } else {
+        // Nếu không có lời mời, chuyển hướng như bình thường
+        toast.success("Đăng nhập thành công!");
+        router.push("/");
+      }
+    }
+  }, [user, token]); // Phụ thuộc vào user và token
+
+  // 6. Hàm gọi API để chấp nhận lời mời
+  const acceptInvitation = async (inviteToken: string, userEmail: string, authToken: string) => {
+    try {
+      const response = await fetch('/api/teams/response', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${authToken}`
+        },
+        body: JSON.stringify({
+          inviteToken: inviteToken,
+          email: userEmail
+        }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        toast.error(data.message || "Không thể chấp nhận lời mời.");
+      } else {
+        toast.success(data.message || "Bạn đã tham gia nhóm thành công!");
+      }
+    } catch (error) {
+      console.error("Error accepting invitation:", error);
+      toast.error("Lỗi khi xử lý lời mời.");
+    } finally {
+      // Dù thành công hay thất bại, cuối cùng vẫn chuyển hướng
+      router.push("/");
+    }
+  };
 
   const handleSocialLogin = (provider: string) => {
     toast.info(`Tính năng đăng nhập bằng ${provider} đang được phát triển`)
