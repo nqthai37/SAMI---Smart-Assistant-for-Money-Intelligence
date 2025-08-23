@@ -73,16 +73,21 @@ export function Sidebar() {
 
         {/* Danh sách team */}
         <div className="pt-4 border-t border-gray-200 space-y-1">
+           <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide px-2">
+            Nhóm của tui
+            </p>
           {teams.map((team) => (
-            <Button
-              key={team.id}
-              variant="ghost"
-              className="w-full justify-start text-gray-600 hover:bg-gray-100"
-              onClick={() => selectTeam(team)} 
-            >
-              {team.teamName}
-            </Button>
-          ))}
+              <Button
+                key={team.id}
+                variant="ghost"
+                className="w-full justify-start text-gray-600 hover:bg-gray-100"
+                onClick={() => selectTeam(team)} 
+  >           
+                <span className="truncate overflow-hidden whitespace-nowrap max-w-[150px]">
+                  {team.teamName}
+                </span>
+              </Button>
+            ))}
         </div>
       </nav>
     </div>
