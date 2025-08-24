@@ -158,7 +158,7 @@ const formatCurrency = (amount: number, currencyCode: string = "VND") => {
       filtered = filtered.filter((t) => transactionFilters.creators.includes(t.createdBy))
     }
     if (transactionFilters.categories.length > 0) {
-      filtered = filtered.filter((t) => transactionFilters.categories.includes(t.category))
+      filtered = filtered.filter((t) => transactionFilters.categories.includes(t.categoryName))
     }
     if (transactionFilters.type !== "all") {
       filtered = filtered.filter((t) => t.type === transactionFilters.type)
@@ -170,7 +170,7 @@ const formatCurrency = (amount: number, currencyCode: string = "VND") => {
       filtered = filtered.filter(
         (t) =>
           t.description.toLowerCase().includes(lowerCaseSearchTerm) ||
-          t.category.toLowerCase().includes(lowerCaseSearchTerm),
+          t.categoryName.toLowerCase().includes(lowerCaseSearchTerm),
       )
     }
 
@@ -208,7 +208,7 @@ const myTransactions = useMemo(() => {
     personalFiltered = personalFiltered.filter(
       (t) =>
         t.description.toLowerCase().includes(lowerCaseSearchTerm) ||
-        t.category.toLowerCase().includes(lowerCaseSearchTerm),
+        t.categoryName.toLowerCase().includes(lowerCaseSearchTerm),
     );
   }
 
@@ -816,10 +816,10 @@ const createLineChart = () => {
         <div className="flex items-center gap-4">
           <div className="flex items-center gap-3">
             <div className={`w-4 h-4 rounded-full ${team.color}`}></div>
-            <h1 className="text-2xl font-bold text-gray-900">{team.name}</h1>
+            <h1 className="text-2xl font-bold text-gray-900">{team.teamName}</h1>
             <Badge variant="secondary">{team.currentUserRole}</Badge>
             <RoleSwitcher
-              teamName={team.name}
+              teamName={team.teamName}
               actualRole={team.currentUserRole}
               currentMode={team.currentUserMode}
               onModeChange={onModeChange}
