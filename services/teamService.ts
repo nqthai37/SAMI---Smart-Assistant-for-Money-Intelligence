@@ -100,25 +100,17 @@ const setPreferredCurrency = async (teamId: number, userId: number, currency: st
 };
 
 /** setCategories: admin */
-const setFinanceCategories = async (teamId: number, userId: number, newCategory: { name: string; icon: string }) => {
-  assertCategory(newCategory);
-  await ensureAccessByRoles(teamId, userId, ['admin']);
+const setFinanceCategories = async (teamId: number, userId: number, newCategory: { name: string; icon: string }[]) => {
+  await ensureAccessByRoles(teamId, userId, ['owner', 'admin', 'deputy']);
 
   const team = await TeamModel.getCategories(teamId);
   if (!team) bad('Team không tồn tại', 404);
 
-  // Lấy mảng categories hiện tại, đảm bảo nó là một mảng
-  const currentCategories = (Array.isArray(team.categories) ? team.categories : []) as { name: string; icon: string }[];
-
-  // Kiểm tra xem category đã tồn tại chưa (dựa trên tên)
-  if (currentCategories.some(cat => cat.name.toLowerCase() === newCategory.name.toLowerCase())) {
-    bad(`Category với tên "${newCategory.name}" đã tồn tại.`, 409); // 409 Conflict
+  for (const cat of newCategory) {
+    assertCategory(cat);
   }
 
-  // Thêm category mới vào mảng
-  const updatedCategories = [...currentCategories, newCategory];
-
-  return TeamModel.updateCategories(teamId, updatedCategories);
+  return TeamModel.updateCategories(teamId, newCategory);
 };
 
 const renameWorkspaceName = async (teamId: number, userId: number, newName: string) => {
@@ -300,14 +292,59 @@ const createTeam = async (req, res) => {
 };
 
 const removeMember = async (teamId: number, memberId: number, userId: number) => {
-  const user = await UserModel.findById(userId);
-  const team = await TeamModel.getBasic(teamId);
-  await prisma?.teamMembers.findFirst({
-    where: { teamId, userId },
-    select: { role: true }
-  });
+  if (!teamId || !memberId) bad('Thiếu teamId hoặc memberId', 400);
 
+    // B1: Đảm bảo người dùng hiện tại có quyền kick
+    await ensureAccessByRoles(teamId, userId, ['owner', 'admin', 'deputy'], false);
+
+    // B2: (QUAN TRỌNG) Kiểm tra phân cấp quyền giữa người kick và người bị kick
+    const roleHierarchy = ['owner', 'admin', 'deputy', 'member'];
+    const kickerMembership = await TeamModel.getMembership(teamId, userId);
+    const kickedMembership = await TeamModel.getMembership(teamId, memberId);
+
+    if (!kickerMembership || !kickedMembership) bad('Thành viên không tồn tại trong nhóm', 404);
+
+    const kickerRoleIndex = roleHierarchy.indexOf(kickerMembership.role.toLowerCase())
+    const kickedRoleIndex = roleHierarchy.indexOf(kickedMembership.role.toLowerCase())
+
+    // Người kick phải có vai trò cao hơn (index nhỏ hơn) người bị kick
+    if (kickerRoleIndex >= kickedRoleIndex) {
+        bad('Bạn không có quyền xóa thành viên này', 403);
+    }
+    // B3: Gọi model để xóa thành viên
+    return TeamModel.removeMember(teamId, memberId);
 }
+
+const changeMemberRole = async (teamId: number, memberId: number, userId: number, newRole: string) => {
+  if (!teamId || !memberId || !newRole) bad('Thiếu teamId, memberId hoặc newRole', 400);
+
+    // B1: Đảm bảo người dùng hiện tại có quyền thay đổi role
+    await ensureAccessByRoles(teamId, userId, ['owner', 'admin', 'deputy'], false);
+
+    // B2: (QUAN TRỌNG) Kiểm tra phân cấp quyền giữa người thay đổi và người bị thay đổi
+    const roleHierarchy = ['owner', 'admin', 'deputy', 'member'];
+    const changerMembership = await TeamModel.getMembership(teamId, userId);
+    const targetMembership = await TeamModel.getMembership(teamId, memberId);
+
+    if (!changerMembership || !targetMembership) bad('Thành viên không tồn tại trong nhóm', 404);
+
+    const changerRoleIndex = roleHierarchy.indexOf(changerMembership.role.toLowerCase())
+    const targetRoleIndex = roleHierarchy.indexOf(targetMembership.role.toLowerCase())
+    const newRoleIndex = roleHierarchy.indexOf(newRole.toLowerCase());
+
+    if (newRoleIndex === -1) {
+      bad('Vai trò mới không hợp lệ', 400);
+    }
+
+    if (changerRoleIndex >= targetRoleIndex) {
+      bad('Bạn không có quyền thay đổi vai trò của thành viên này', 403);
+    }
+    if (newRoleIndex < changerRoleIndex) {
+      bad('Bạn không thể gán một vai trò cao hơn vai trò của mình', 403);
+    }
+    // B3: Gọi model để thay đổi vai trò thành viên
+    return TeamModel.updateMemberRole(teamId, memberId, newRole);
+  }
 
 // Gom export như code base của bạn
 export const TeamService = {
@@ -323,4 +360,5 @@ export const TeamService = {
   handleInviteResponse,
   getTeamDetails,
   removeMember,
+  changeMemberRole,
 };

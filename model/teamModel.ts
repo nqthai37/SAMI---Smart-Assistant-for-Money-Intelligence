@@ -316,6 +316,25 @@ export const TeamModel = {
     }
   },
 
+  getMembership: async (teamId: number, userId: number) => {
+    try {
+      return await prisma.teamMembers.findUnique({
+        where: {
+          teamId_userId: {
+            teamId,
+            userId
+          }
+        },
+        select: {
+          role: true
+        }
+      });
+    } catch (error) {
+      console.error('Error getting membership:', error);
+      throw new Error('Không thể lấy thông tin thành viên.');
+    }
+  },
+
   removeMember: async (teamId: number, memberId: number) => {
     try {
       return await prisma.teamMembers.deleteMany({
@@ -327,6 +346,23 @@ export const TeamModel = {
     } catch (error) {
       console.error('Error removing member:', error);
       throw new Error('Không thể xóa thành viên khỏi nhóm.');
+    }
+  },
+
+  updateMemberRole: async (teamId: number, memberId: number, newRole: string) => {
+    try {
+      return await prisma.teamMembers.updateMany({
+        where: {
+          teamId,
+          userId: memberId
+        },
+        data: {
+          role: newRole.toLocaleLowerCase()
+        }
+      });
+    } catch (error) {
+      console.error('Error changing member role:', error);
+      throw new Error('Không thể thay đổi vai trò của thành viên.');
     }
   },
 };

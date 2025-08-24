@@ -67,4 +67,5 @@ export interface TeamDetails extends Team {
   currentUserRole: UserRole; // Đảm bảo đây là UserRole, không phải string
   currentUserMode: UserMode; // THÊM DÒNG NÀY
   currency: string;
+  categories: { name: string; icon: string }[]; 
 }
