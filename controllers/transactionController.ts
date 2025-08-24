@@ -12,7 +12,7 @@ const addTransaction = async (req: Request, res: Response) => {
 
     const payload = req.body;
 
-    const created = await TransactionService.addTransactionRecord(payload, userId);
+    const created = await TransactionService.addTransactionRecord(payload,userId);
 
     return res.status(201).json({
       message: 'Transaction created',

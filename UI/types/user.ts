@@ -26,7 +26,7 @@ export interface Transaction {
   description: string
   amount: number
   type: "income" | "expense"
-  category: string
+  categoryName: string
   createdBy: string
   status: "approved" | "edit_requested" | "delete_requested"
   createdAt: string
