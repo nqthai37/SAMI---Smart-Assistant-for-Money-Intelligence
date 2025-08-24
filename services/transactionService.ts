@@ -89,6 +89,14 @@ export const listTransactionsByTeam = async (
   const [transactions, totalTransactions] = await prisma.$transaction([
     prisma.transactions.findMany({
       where: { teamId: teamId },
+      include: {
+        User: { // THÊM: Lấy thông tin người tạo giao dịch
+          select: {
+            id: true,
+            firstName: true,
+          },
+        },
+      },
       skip: skip,
       take: limit,
       orderBy: {
@@ -100,8 +108,16 @@ export const listTransactionsByTeam = async (
     }),
   ]);
 
+  const transformedTransactions = transactions.map(transaction => ({
+    ...transaction,
+    createdBy: transaction.User?.firstName || 'Unknown User',
+    createdById: transaction.User?.id || transaction.userId,
+    // Bỏ User object để tránh gửi thông tin thừa
+    User: undefined,
+  }));
+
   return {
-    data: transactions,
+    data: transformedTransactions,
     pagination: {
       page,
       limit,

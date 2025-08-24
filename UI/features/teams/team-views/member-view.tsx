@@ -522,7 +522,8 @@ const chartData = useMemo(() => {
   
   for (let i = 11; i >= 0; i--) {
     const date = new Date(now.getFullYear(), now.getMonth() - i, 1);
-    const monthName = date.toLocaleDateString('vi-VN', { month: 'short' });
+    const monthNumber = date.getMonth() + 1; // 1-12
+    const monthName = `T${monthNumber}`; 
     
     const monthlyTransactions = allTransactions.filter(t => {
       const transactionDate = new Date(t.createdAt);
@@ -787,18 +788,18 @@ const createLineChart = () => {
     }
     if (filterType === "monthly" && filterValue && "month" in filterValue) {
       const monthNames = [
-        "T1",
-        "T2",
-        "T3",
-        "T4",
-        "T5",
-        "T6",
-        "T7",
-        "T8",
-        "T9",
-        "T10",
-        "T11",
-        "T12",
+        "Tháng 1",
+        "Tháng 2",
+        "Tháng 3",
+        "Tháng 4",
+        "Tháng 5",
+        "Tháng 6",
+        "Tháng 7",
+        "Tháng 8",
+        "Tháng 9",
+        "Tháng 10",
+        "Tháng 11",
+        "Tháng 12",
       ]
       return `${monthNames[filterValue.month]}, ${filterValue.year}`
     }
@@ -869,11 +870,10 @@ const createLineChart = () => {
           <CardContent className="p-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium text-gray-600">Giao dịch bình thường</p>
+                <p className="text-sm font-medium text-gray-600">Tổng số giao duyệt</p>
                 <p className="text-2xl font-bold text-blue-600">
                   {myTransactions.filter((t) => t.userId==user.id).length}
                 </p>
-                <p className="text-xs text-gray-600 mt-1">Đã được duyệt</p>
               </div>
               <FileText className="w-8 h-8 text-blue-600" />
             </div>
@@ -1244,7 +1244,7 @@ const createLineChart = () => {
           {/* Unified Reports and Transactions Section */}
           <Card>
             <CardHeader className="flex flex-row items-center justify-between">
-              <CardTitle>Báo cáo & Lịch sử giao dịch nhóm</CardTitle>
+              <CardTitle>Báo cáo</CardTitle>
               <div className="flex items-center gap-2">
                 <Button
                   variant="outline"
