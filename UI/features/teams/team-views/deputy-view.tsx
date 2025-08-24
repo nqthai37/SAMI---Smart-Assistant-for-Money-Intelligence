@@ -573,9 +573,9 @@ export function DeputyView({ team, onModeChange, onUpdateTeam }: DeputyViewProps
                             <span className="font-medium">{category.name}</span>
                           </div>
                           <div className="flex gap-2">
-                            <Button variant="outline" size="sm">
+                            {/* <Button variant="outline" size="sm">
                               <Edit className="w-4 h-4" />
-                            </Button>
+                            </Button> */}
                             <Button
                               variant="outline"
                               size="sm"
