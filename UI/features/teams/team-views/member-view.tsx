@@ -24,7 +24,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { RoleSwitcher } from "../components/role-switcher"
 import type { Team, Transaction } from "../../../types/user"
 import { expenseCategories, incomeCategories } from "../../../data/categories"
-import { useMemo, useState } from "react"
+import { useMemo, useState, useEffect } from "react"
 import { DateFilterDialog } from "../../transactions/components/date-filter-dialog"
 import { TransactionFilterDialog } from "../../transactions/components/transaction-filter-dialog"
 import { Progress } from "@/components/ui/progress"
@@ -44,7 +44,7 @@ import {
 } from "@/components/ui/alert-dialog"
 import { toast } from "sonner"
 import { useAuth } from "@/lib/auth"; // Import hook useAuth
-
+import {api} from "@/lib/api"; // Import api instance
 type FilterType = "daily" | "weekly" | "monthly" | "annual" | "all-time"
 
 interface MemberViewProps {
@@ -62,7 +62,7 @@ export function MemberView({
   onUpdateTransaction,
   onDeleteTransaction,
 }: MemberViewProps) {
-  const { user } = useAuth(); // Lấy thông tin user đang đăng nhập
+  const { user, token } = useAuth(); // Lấy thông tin user đang đăng nhập
 
   // State for Group Date Filtering
   const [showDateFilterDialog, setShowDateFilterDialog] = useState(false)
@@ -178,81 +178,105 @@ export function MemberView({
   }, [allTransactions, currentDateFilterType, currentDateFilterValue, transactionFilters, transactionSearchTerm])
 
   // My transactions (for "Giao dịch của tôi" section and Personal Reports)
-  const myTransactions = useMemo(() => {
-    if (!user) return [];
-    // Nên lọc theo ID nếu có, nếu không thì dùng tên
-    let personalFiltered = allTransactions.filter((t) => t.createdBy === user.name);
-    // Apply personal date filter
-    personalFiltered = applyDateFilter(personalFiltered, personalDateFilterType, personalDateFilterValue)
-
-    // Apply personal transaction search term
-    if (myTransactionSearchTerm) {
-      const lowerCaseSearchTerm = myTransactionSearchTerm.toLowerCase()
-      personalFiltered = personalFiltered.filter(
-        (t) =>
-          t.description.toLowerCase().includes(lowerCaseSearchTerm) ||
-          t.category.toLowerCase().includes(lowerCaseSearchTerm),
-      )
+  // Dòng 185: Sửa lại logic filter
+const myTransactions = useMemo(() => {
+  if (!user) return [];
+  
+  console.log('=== DEBUG PERSONAL TRANSACTIONS ===');
+  console.log('Current user:', user);
+  console.log('All transactions:', allTransactions);
+  
+  // SỬA: Thử nhiều cách match để đảm bảo tìm được giao dịch
+  let personalFiltered = allTransactions.filter((t) => {
+    const match =  t.userId === user.id;
+    
+    if (match) {
+      console.log('Found matching transaction:', t);
     }
+    return match;
+  });
+  
+  console.log('Personal filtered transactions:', personalFiltered);
+  
+  
+  // Apply personal date filter
+  personalFiltered = applyDateFilter(personalFiltered, personalDateFilterType, personalDateFilterValue);
 
-    return personalFiltered
-  }, [allTransactions, personalDateFilterType, personalDateFilterValue, myTransactionSearchTerm, user])
+  // Apply personal transaction search term
+  if (myTransactionSearchTerm) {
+    const lowerCaseSearchTerm = myTransactionSearchTerm.toLowerCase();
+    personalFiltered = personalFiltered.filter(
+      (t) =>
+        t.description.toLowerCase().includes(lowerCaseSearchTerm) ||
+        t.category.toLowerCase().includes(lowerCaseSearchTerm),
+    );
+  }
 
-  const myPendingRequests = myTransactions.filter((t) => t.status !== "approved")
-
+  return personalFiltered;
+}, [allTransactions, personalDateFilterType, personalDateFilterValue, myTransactionSearchTerm, user]);
+  // SỬA: Bỏ filter userId và teamId vì không cần thiết
+const myPendingRequests = []; // Tạm thời để empty vì không có status field
   // Calculate personal financial data
-  const myPersonalIncome = myTransactions
-    .filter((t) => t.type === "income" && t.status === "approved")
-    .reduce((sum, t) => sum + t.amount, 0)
+// SỬA: Parse amount từ string sang number
+const myPersonalIncome = myTransactions
+  .filter((t) => t.type === "income")
+  .reduce((sum, t) => sum + parseFloat(t.amount), 0) // THÊM parseFloat
 
-  const myPersonalExpenses = myTransactions
-    .filter((t) => t.type === "expense" && t.status === "approved")
-    .reduce((sum, t) => sum + t.amount, 0)
+const myPersonalExpenses = myTransactions
+  .filter((t) => t.type === "expense")
+  .reduce((sum, t) => sum + parseFloat(t.amount), 0) // THÊM parseFloat
 
-  // Calculate personal income breakdown by category
-  const myIncomeByCategory = myTransactions
-    .filter((t) => t.type === "income" && t.status === "approved")
-    .reduce(
-      (acc, t) => {
-        acc[t.category] = (acc[t.category] || 0) + t.amount
-        return acc
-      },
-      {} as Record<string, number>,
-    )
+// SỬA: Trong myIncomeByCategory
+const myIncomeByCategory = myTransactions
+  .filter((t) => t.type === "income")
+  .reduce(
+    (acc, t) => {
+      acc[t.categoryName] = (acc[t.categoryName] || 0) + parseFloat(t.amount) // THÊM parseFloat
+      return acc
+    },
+    {} as Record<string, number>,
+  )
 
-  const myIncomeBreakdown = Object.entries(myIncomeByCategory)
-    .map(([category, amount], index) => {
-      const colors = ["#10B981", "#3B82F6", "#8B5CF6", "#F59E0B", "#EF4444"]
-      return {
-        category,
-        percentage: Math.round((amount / myPersonalIncome) * 100),
-        color: colors[index % colors.length],
-      }
-    })
-    .filter((item) => item.percentage > 0)
+// SỬA: Trong myExpensesByCategory  
+const myExpensesByCategory = myTransactions
+  .filter((t) => t.type === "expense")
+  .reduce(
+    (acc, t) => {
+      acc[t.categoryName] = (acc[t.categoryName] || 0) + parseFloat(t.amount) // THÊM parseFloat
+      return acc
+    },
+    {} as Record<string, number>,
+  )
+  // SỬA: Tính tổng của từng loại category riêng biệt
+const myIncomeBreakdown = Object.entries(myIncomeByCategory)
+  .map(([category, amount], index) => {
+    const colors = ["#10B981", "#3B82F6", "#8B5CF6", "#F59E0B", "#EF4444"]
+    
+    // SỬA: Tính tổng thu nhập từ myIncomeByCategory thay vì dùng myPersonalIncome
+    const totalIncomeFromCategories = Object.values(myIncomeByCategory).reduce((sum, val) => sum + val, 0)
+    
+    return {
+      category,
+      percentage: totalIncomeFromCategories > 0 ? Math.round((amount / totalIncomeFromCategories) * 100) : 0,
+      color: colors[index % colors.length],
+    }
+  })
+  .filter((item) => item.percentage > 0)
 
-  // Calculate personal expense breakdown by category
-  const myExpensesByCategory = myTransactions
-    .filter((t) => t.type === "expense" && t.status === "approved")
-    .reduce(
-      (acc, t) => {
-        acc[t.category] = (acc[t.category] || 0) + t.amount
-        return acc
-      },
-      {} as Record<string, number>,
-    )
-
-  const myExpenseBreakdown = Object.entries(myExpensesByCategory)
-    .map(([category, amount], index) => {
-      const colors = ["#EF4444", "#F59E0B", "#06B6D4", "#84CC16", "#8B5CF6"]
-      return {
-        category,
-        percentage: Math.round((amount / myPersonalExpenses) * 100),
-        color: colors[index % colors.length],
-      }
-    })
-    .filter((item) => item.percentage > 0)
-
+const myExpenseBreakdown = Object.entries(myExpensesByCategory)
+  .map(([category, amount], index) => {
+    const colors = ["#EF4444", "#F59E0B", "#06B6D4", "#84CC16", "#8B5CF6"]
+    
+    // SỬA: Tính tổng chi tiêu từ myExpensesByCategory thay vì dùng myPersonalExpenses
+    const totalExpenseFromCategories = Object.values(myExpensesByCategory).reduce((sum, val) => sum + val, 0)
+    
+    return {
+      category,
+      percentage: totalExpenseFromCategories > 0 ? Math.round((amount / totalExpenseFromCategories) * 100) : 0,
+      color: colors[index % colors.length],
+    }
+  })
+  .filter((item) => item.percentage > 0)
   // Group totals based on filtered transactions (for group reports)
   const groupTotalIncome = filteredTransactions.filter((t) => t.type === "income").reduce((sum, t) => sum + t.amount, 0)
   const groupTotalExpenses = filteredTransactions
@@ -291,6 +315,35 @@ export function MemberView({
     }
   }
 
+// Thêm useEffect debug cho breakdown calculations
+// useEffect(() => {
+//   console.log('=== BREAKDOWN DEBUG ===');
+//   console.log('myTransactions count:', myTransactions.length);
+//   console.log('myTransactions sample:', myTransactions[0]);
+//   console.log('myIncomeByCategory:', myIncomeByCategory);
+//   console.log('myExpensesByCategory:', myExpensesByCategory);
+//   console.log('myIncomeBreakdown:', myIncomeBreakdown);
+//   console.log('myExpenseBreakdown:', myExpenseBreakdown);
+  
+//   // Debug chi tiết từng transaction
+//   myTransactions.forEach((t, index) => {
+//     console.log(`Transaction ${index}:`, {
+//       id: t.id,
+//       type: t.type,
+//       categoryName: t.category,
+//       amount: t.amount,
+//       categoryExists: !!t.categoryName,
+//     });
+//   });
+  
+//   // Debug category grouping
+//   const incomeTransactions = myTransactions.filter((t) => t.type === "income");
+//   const expenseTransactions = myTransactions.filter((t) => t.type === "expense");
+//   console.log('Income transactions:', incomeTransactions);
+//   console.log('Expense transactions:', expenseTransactions);
+// }, [myTransactions, myIncomeByCategory, myExpensesByCategory, myIncomeBreakdown, myExpenseBreakdown]);
+
+
   const handleRejectRequest = (transactionId: string) => {
     // console.log("Reject request for transaction:", transactionId)
     toast.info(`Đã từ chối yêu cầu cho giao dịch ${transactionId}.`)
@@ -323,44 +376,151 @@ export function MemberView({
     toast.success("Giao dịch đã được xóa thành công!")
   }
 
-  const handleAddTransaction = (transactionData: {
-    type: "income" | "expense"
-    date: Date
-    description: string
-    amount: number
-    category: string
-    note?: string
-  }) => {
-    if (!user) return;
-    const newTransaction: Transaction = {
-      id: `temp-${Date.now()}`, // Generate a temporary ID
-      description: transactionData.description,
-      amount: transactionData.amount,
-      type: transactionData.type,
-      category: transactionData.category,
-      createdBy: user.name, // Dùng tên user đang đăng nhập
-      status: "approved", // New transactions are approved by default
-      createdAt: transactionData.date.toISOString().split("T")[0],
-      note: transactionData.note,
-    }
-    onUpdateTransaction(newTransaction) // Use onUpdateTransaction to add it to the list
-    toast.success("Giao dịch đã được thêm thành công!")
+const handleAddTransaction = async (transactionData: {
+  type: "income" | "expense"
+  date: Date
+  description: string
+  amount: number
+  categoryName: string
+  note?: string
+}) => {
+  if (!user || !token) {
+    toast.error("Vui lòng đăng nhập để thực hiện giao dịch này.");
+    return;
   }
 
-  // Data for charts (matching image values) - these should ideally be derived from filteredTransactions
-  const chartData = useMemo(() => {
-    const groupTotalIncome = filteredTransactions.filter(t => t.type === 'income').reduce((sum, t) => sum + t.amount, 0);
-    const groupTotalExpenses = filteredTransactions.filter(t => t.type === 'expense').reduce((sum, t) => sum + t.amount, 0);
-    
-    // Tương tự, tính toán incomeBreakdown, expenseBreakdown... từ filteredTransactions
-    // ...
-
-    return {
-      generalIncome: groupTotalIncome,
-      generalExpense: groupTotalExpenses,
-      // ...
+  try {
+    // Chuẩn hóa payload theo yêu cầu backend
+    const payload = {
+      teamId: team.id,
+      amount: transactionData.amount,
+      type: transactionData.type,
+      categoryName: transactionData.categoryName,
+      transactionDate: transactionData.date.toISOString().split("T")[0], // Format yyyy-mm-dd
+      description: transactionData.description,
     };
-  }, [filteredTransactions]);
+
+    // Gọi API với headers được truyền trực tiếp (nếu api hỗ trợ)
+    const response = await fetch('/api/transactions', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`,
+      },
+      body: JSON.stringify(payload),
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json();
+      throw new Error(errorData.message || 'Thêm giao dịch thất bại');
+    }
+
+    const result = await response.json();
+    const newTransaction = result.data;
+    
+    // Chuyển đổi format từ backend sang frontend
+    const frontendTransaction: Transaction = {
+        id: newTransaction.id.toString(),
+        description: newTransaction.description || '',
+        amount: parseFloat(newTransaction.amount),
+        type: newTransaction.type,
+        category: newTransaction.categoryName,
+        createdBy: user.firstName, // Đảm bảo dùng cùng field với filter
+        status: "approved",
+        createdAt: newTransaction.transactionDate || newTransaction.createdAt,
+      };
+    onUpdateTransaction(frontendTransaction);
+    toast.success("Giao dịch đã được thêm thành công!");
+  } catch (error: any) {
+    console.error('Add transaction error:', error);
+    const errorMessage = error.message || "Đã xảy ra lỗi khi thêm giao dịch.";
+    toast.error(errorMessage);
+  }
+};
+
+// Data for charts (matching image values) - these should ideally be derived from filteredTransactions
+// Data for charts - derived from filteredTransactions
+const chartData = useMemo(() => {
+  // Tính tổng thu nhập và chi tiêu từ filteredTransactions
+  // const userID = user?.id;
+  const groupTotalIncome = filteredTransactions.filter(t => t.type === 'income').reduce((sum, t) => sum + t.amount, 0);
+  const groupTotalExpenses = filteredTransactions.filter(t => t.type === 'expense').reduce((sum, t) => sum + t.amount, 0);
+
+  // Tính breakdown thu nhập theo category
+  const incomeByCategory = filteredTransactions
+    .filter(t => t.type === 'income')
+    .reduce((acc, t) => {
+      acc[t.categoryName] = (acc[t.categoryName] || 0) + t.amount;
+      return acc;
+    }, {} as Record<string, number>);
+
+  const incomeBreakdown = Object.entries(incomeByCategory)
+    .map(([categoryName, amount], index) => {
+      const colors = ["#10B981", "#3B82F6", "#8B5CF6", "#F59E0B", "#EF4444"];
+      return {
+        categoryName,
+        percentage: groupTotalIncome > 0 ? Math.round((amount / groupTotalIncome) * 100) : 0,
+        color: colors[index % colors.length],
+      };
+    })
+    .filter(item => item.percentage > 0);
+
+  // Tính breakdown chi tiêu theo category
+  const expensesByCategory = filteredTransactions
+    .filter(t => t.type === 'expense')
+    .reduce((acc, t) => {
+      acc[t.categoryName] = (acc[t.categoryName] || 0) + t.amount;
+      return acc;
+    }, {} as Record<string, number>);
+
+  const expenseBreakdown = Object.entries(expensesByCategory)
+    .map(([category, amount], index) => {
+      const colors = ["#EF4444", "#F59E0B", "#06B6D4", "#84CC16", "#8B5CF6"];
+      return {
+        category,
+        percentage: groupTotalExpenses > 0 ? Math.round((amount / groupTotalExpenses) * 100) : 0,
+        color: colors[index % colors.length],
+      };
+    })
+    .filter(item => item.percentage > 0);
+
+  // Tính yearly trend từ allTransactions (12 tháng gần đây)
+  const now = new Date();
+  const yearlyTrend = [];
+  
+  for (let i = 11; i >= 0; i--) {
+    const date = new Date(now.getFullYear(), now.getMonth() - i, 1);
+    const monthName = date.toLocaleDateString('vi-VN', { month: 'short' });
+    
+    const monthlyTransactions = allTransactions.filter(t => {
+      const transactionDate = new Date(t.createdAt);
+      return transactionDate.getMonth() === date.getMonth() && 
+             transactionDate.getFullYear() === date.getFullYear();
+    });
+    
+    const monthlyIncome = monthlyTransactions
+      .filter(t => t.type === 'income')
+      .reduce((sum, t) => sum + t.amount, 0);
+      
+    const monthlyExpense = monthlyTransactions
+      .filter(t => t.type === 'expense')
+      .reduce((sum, t) => sum + t.amount, 0);
+    
+    yearlyTrend.push({
+      month: monthName,
+      income: monthlyIncome,
+      expense: monthlyExpense,
+    });
+  }
+
+  return {
+    generalIncome: groupTotalIncome,
+    generalExpense: groupTotalExpenses,
+    incomeBreakdown,
+    expenseBreakdown,
+    yearlyTrend,
+  };
+}, [filteredTransactions, allTransactions]);
 
   // Helper to create Bar Chart SVG for General
   const createBarChart = (income: number, expense: number) => {
@@ -419,158 +579,162 @@ export function MemberView({
   }
 
   // Helper to create Line Chart SVG
-  const createLineChart = () => {
-    const width = 700
-    const height = 250
-    const padding = 60
-    const chartWidth = width - padding * 2
-    const chartHeight = height - padding * 2
+// Helper to create Line Chart SVG
 
-    // Fixed Y-axis values from image
-    const yAxisValues = [0, 6250000, 12500000, 18750000, 25000000]
-    const maxChartValue = yAxisValues[yAxisValues.length - 1]
 
-    const incomePoints = chartData.yearlyTrend
-      .map((d, i) => {
-        const x = padding + (i * chartWidth) / (chartData.yearlyTrend.length - 1)
-        const y = padding + chartHeight - (d.income / maxChartValue) * chartHeight
-        return `${x},${y}`
-      })
-      .join(" ")
+const createLineChart = () => {
+  const width = 700
+  const height = 250
+  const padding = 60
+  const chartWidth = width - padding * 2
+  const chartHeight = height - padding * 2
 
-    const expensePoints = chartData.yearlyTrend
-      .map((d, i) => {
-        const x = padding + (i * chartWidth) / (chartData.yearlyTrend.length - 1)
-        const y = padding + chartHeight - (d.expense / maxChartValue) * chartHeight
-        return `${x},${y}`
-      })
-      .join(" ")
-
-    return (
-      <div className="w-full overflow-x-auto">
-        <svg width={width} height={height} className="min-w-full">
-          {/* Grid lines */}
-          {yAxisValues.map((_, i) => {
-            if (i === 0) return null // Don't draw line for 0
-            const y = padding + chartHeight - (i / (yAxisValues.length - 1)) * chartHeight
-            return (
-              <line
-                key={`grid-y-${i}`}
-                x1={padding}
-                y1={y}
-                x2={width - padding}
-                y2={y}
-                stroke="#E5E7EB"
-                strokeWidth="1"
-              />
-            )
-          })}
-
-          {/* Y-axis line */}
-          <line x1={padding} y1={padding} x2={padding} y2={padding + chartHeight} stroke="#6B7280" strokeWidth="2" />
-
-          {/* X-axis line */}
-          <line
-            x1={padding}
-            y1={padding + chartHeight}
-            x2={width - padding}
-            y2={padding + chartHeight}
-            stroke="#6B7280"
-            strokeWidth="2"
-          />
-
-          {/* Y-axis labels */}
-          {yAxisValues.map((value, i) => {
-            const label = value === 0 ? "0K" : value >= 1000000 ? `${value / 1000000}M` : `${value / 1000}K`
-            const y = padding + chartHeight - (i / (yAxisValues.length - 1)) * chartHeight
-            return (
-              <text
-                key={`y-label-${i}`}
-                x={padding - 10}
-                y={y + 4}
-                textAnchor="end"
-                className="text-xs fill-gray-600 font-medium"
-              >
-                {label}
-              </text>
-            )
-          })}
-
-          {/* Income line */}
-          <polyline
-            points={incomePoints}
-            fill="none"
-            stroke="#10B981"
-            strokeWidth="3"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-          />
-
-          {/* Expense line */}
-          <polyline
-            points={expensePoints}
-            fill="none"
-            stroke="#EF4444"
-            strokeWidth="3"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-          />
-
-          {/* Income points */}
-          {chartData.yearlyTrend.map((d, i) => {
-            const x = padding + (i * chartWidth) / (chartData.yearlyTrend.length - 1)
-            const y = padding + chartHeight - (d.income / maxChartValue) * chartHeight
-            return <circle key={`income-${i}`} cx={x} cy={y} r="4" fill="#10B981" />
-          })}
-
-          {/* Expense points */}
-          {chartData.yearlyTrend.map((d, i) => {
-            const x = padding + (i * chartWidth) / (chartData.yearlyTrend.length - 1)
-            const y = padding + chartHeight - (d.expense / maxChartValue) * chartHeight
-            return <circle key={`expense-${i}`} cx={x} cy={y} r="4" fill="#EF4444" />
-          })}
-
-          {/* X-axis labels */}
-          {chartData.yearlyTrend.map((d, i) => {
-            const x = padding + (i * chartWidth) / (chartData.yearlyTrend.length - 1)
-            return (
-              <text
-                key={`label-${i}`}
-                x={x}
-                y={height - 15}
-                textAnchor="middle"
-                className="text-xs fill-gray-600 font-medium"
-              >
-                {d.month}
-              </text>
-            )
-          })}
-
-          {/* Y-axis title */}
-          <text
-            x={20}
-            y={padding + chartHeight / 2}
-            textAnchor="middle"
-            className="text-xs fill-gray-600 font-medium"
-            transform={`rotate(-90, 20, ${padding + chartHeight / 2})`}
-          >
-            Số tiền (VNĐ)
-          </text>
-
-          {/* X-axis title */}
-          <text
-            x={padding + chartWidth / 2}
-            y={height - 5}
-            textAnchor="middle"
-            className="text-xs fill-gray-600 font-medium"
-          >
-            Tháng
-          </text>
-        </svg>
-      </div>
-    )
+  // Tính max value từ dữ liệu thực
+  const maxIncome = Math.max(...chartData.yearlyTrend.map(d => d.income));
+  const maxExpense = Math.max(...chartData.yearlyTrend.map(d => d.expense));
+  const maxChartValue = Math.max(maxIncome, maxExpense);
+  
+  // Tạo Y-axis values động dựa trên maxChartValue
+  const yAxisValues = [];
+  for (let i = 0; i <= 4; i++) {
+    yAxisValues.push((maxChartValue / 4) * i);
   }
 
+  const incomePoints = chartData.yearlyTrend
+    .map((d, i) => {
+      const x = padding + (i * chartWidth) / (chartData.yearlyTrend.length - 1)
+      const y = padding + chartHeight - (d.income / maxChartValue) * chartHeight
+      return `${x},${y}`
+    })
+    .join(" ")
+
+  const expensePoints = chartData.yearlyTrend
+    .map((d, i) => {
+      const x = padding + (i * chartWidth) / (chartData.yearlyTrend.length - 1)
+      const y = padding + chartHeight - (d.expense / maxChartValue) * chartHeight
+      return `${x},${y}`
+    })
+    .join(" ")
+
+  // Rest of the SVG code remains the same...
+  return (
+    <div className="w-full overflow-x-auto">
+      <svg width={width} height={height} className="min-w-full">
+        {/* Grid lines */}
+        {yAxisValues.map((_, i) => {
+          if (i === 0) return null
+          const y = padding + chartHeight - (i / (yAxisValues.length - 1)) * chartHeight
+          return (
+            <line
+              key={`grid-y-${i}`}
+              x1={padding}
+              y1={y}
+              x2={width - padding}
+              y2={y}
+              stroke="#E5E7EB"
+              strokeWidth="1"
+            />
+          )
+        })}
+
+        {/* Axes */}
+        <line x1={padding} y1={padding} x2={padding} y2={padding + chartHeight} stroke="#6B7280" strokeWidth="2" />
+        <line
+          x1={padding}
+          y1={padding + chartHeight}
+          x2={width - padding}
+          y2={padding + chartHeight}
+          stroke="#6B7280"
+          strokeWidth="2"
+        />
+
+        {/* Y-axis labels */}
+        {yAxisValues.map((value, i) => {
+          const label = value === 0 ? "0" : value >= 1000000 ? `${(value / 1000000).toFixed(1)}M` : `${(value / 1000).toFixed(0)}K`
+          const y = padding + chartHeight - (i / (yAxisValues.length - 1)) * chartHeight
+          return (
+            <text
+              key={`y-label-${i}`}
+              x={padding - 10}
+              y={y + 4}
+              textAnchor="end"
+              className="text-xs fill-gray-600 font-medium"
+            >
+              {label}
+            </text>
+          )
+        })}
+
+        {/* Lines and points */}
+        <polyline
+          points={incomePoints}
+          fill="none"
+          stroke="#10B981"
+          strokeWidth="3"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        />
+        <polyline
+          points={expensePoints}
+          fill="none"
+          stroke="#EF4444"
+          strokeWidth="3"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        />
+
+        {/* Income points */}
+        {chartData.yearlyTrend.map((d, i) => {
+          const x = padding + (i * chartWidth) / (chartData.yearlyTrend.length - 1)
+          const y = padding + chartHeight - (d.income / maxChartValue) * chartHeight
+          return <circle key={`income-${i}`} cx={x} cy={y} r="4" fill="#10B981" />
+        })}
+
+        {/* Expense points */}
+        {chartData.yearlyTrend.map((d, i) => {
+          const x = padding + (i * chartWidth) / (chartData.yearlyTrend.length - 1)
+          const y = padding + chartHeight - (d.expense / maxChartValue) * chartHeight
+          return <circle key={`expense-${i}`} cx={x} cy={y} r="4" fill="#EF4444" />
+        })}
+
+        {/* X-axis labels */}
+        {chartData.yearlyTrend.map((d, i) => {
+          const x = padding + (i * chartWidth) / (chartData.yearlyTrend.length - 1)
+          return (
+            <text
+              key={`label-${i}`}
+              x={x}
+              y={height - 15}
+              textAnchor="middle"
+              className="text-xs fill-gray-600 font-medium"
+            >
+              {d.month}
+            </text>
+          )
+        })}
+
+        {/* Axis titles */}
+        <text
+          x={20}
+          y={padding + chartHeight / 2}
+          textAnchor="middle"
+          className="text-xs fill-gray-600 font-medium"
+          transform={`rotate(-90, 20, ${padding + chartHeight / 2})`}
+        >
+          Số tiền (VNĐ)
+        </text>
+        <text
+          x={padding + chartWidth / 2}
+          y={height - 5}
+          textAnchor="middle"
+          className="text-xs fill-gray-600 font-medium"
+        >
+          Tháng
+        </text>
+      </svg>
+    </div>
+  )
+}
   const getDateFilterLabel = (
     filterType: FilterType,
     filterValue: Date | { month: number; year: number } | { year: number } | undefined,
@@ -665,7 +829,7 @@ export function MemberView({
               <div>
                 <p className="text-sm font-medium text-gray-600">Giao dịch bình thường</p>
                 <p className="text-2xl font-bold text-blue-600">
-                  {myTransactions.filter((t) => t.status === "approved").length}
+                  {myTransactions.filter((t) => t.userId==user.id).length}
                 </p>
                 <p className="text-xs text-gray-600 mt-1">Đã được duyệt</p>
               </div>
@@ -1343,5 +1507,18 @@ export function MemberView({
         onQuickAddTransaction={handleAddTransaction} // Re-use existing add transaction logic
       />
     </div>
-  )
+  );
 }
+
+export interface User {
+  id: string
+  name: string
+  email: string
+  avatar: string
+  firstName: string
+  lastName: string
+  phoneNumber: string
+  token?: string // Thêm trường này
+}
+
+// Thêm useEffect debug ngay sau myTransactions
