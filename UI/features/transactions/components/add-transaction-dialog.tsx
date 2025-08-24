@@ -25,7 +25,7 @@ interface AddTransactionDialogProps {
     date: Date
     description: string
     amount: number
-    category: string
+    categoryName: string
     note?: string
   }) => void
 }
@@ -35,7 +35,7 @@ export function AddTransactionDialog({ isOpen, onOpenChange, onAddTransaction }:
   const [date, setDate] = useState<Date>(new Date())
   const [description, setDescription] = useState("")
   const [amount, setAmount] = useState("")
-  const [category, setCategory] = useState("")
+  const [categoryName, setCategory] = useState("")
   const [note, setNote] = useState("")
   const [isCalendarOpen, setIsCalendarOpen] = useState(false)
 
@@ -44,7 +44,7 @@ export function AddTransactionDialog({ isOpen, onOpenChange, onAddTransaction }:
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
 
-    if (!description.trim() || !amount || !category) {
+    if (!description.trim() || !amount || !categoryName) {
       return // Basic validation
     }
 
@@ -53,7 +53,7 @@ export function AddTransactionDialog({ isOpen, onOpenChange, onAddTransaction }:
       date,
       description: description.trim(),
       amount: Number.parseFloat(amount),
-      category,
+      categoryName,
       note: note.trim() || undefined,
     })
 
@@ -181,7 +181,7 @@ export function AddTransactionDialog({ isOpen, onOpenChange, onAddTransaction }:
 
             <div>
               <Label className="text-sm font-medium text-gray-700 mb-2 block">Danh mục</Label>
-              <Select value={category} onValueChange={setCategory} required>
+              <Select value={categoryName} onValueChange={setCategory} required>
                 <SelectTrigger className="bg-gray-50 border-gray-300">
                   <SelectValue placeholder="Chọn danh mục" />
                 </SelectTrigger>
@@ -227,7 +227,7 @@ export function AddTransactionDialog({ isOpen, onOpenChange, onAddTransaction }:
             <Button
               type="submit"
               className="flex-1 bg-blue-600 text-white hover:bg-blue-700"
-              disabled={!description.trim() || !amount || !category}
+              disabled={!description.trim() || !amount || !categoryName}
             >
               Thêm giao dịch
             </Button>

@@ -375,7 +375,6 @@ const myExpenseBreakdown = Object.entries(myExpensesByCategory)
     onDeleteTransaction(transactionId)
     toast.success("Giao dịch đã được xóa thành công!")
   }
-
 const handleAddTransaction = async (transactionData: {
   type: "income" | "expense"
   date: Date
@@ -390,54 +389,79 @@ const handleAddTransaction = async (transactionData: {
   }
 
   try {
-    // Chuẩn hóa payload theo yêu cầu backend
     const payload = {
-      teamId: team.id,
-      amount: transactionData.amount,
+      teamId: parseInt(team.id.toString(), 10),
+      amount: Number(transactionData.amount),
       type: transactionData.type,
       categoryName: transactionData.categoryName,
-      transactionDate: transactionData.date.toISOString().split("T")[0], // Format yyyy-mm-dd
+      transactionDate: transactionData.date.toISOString().split("T")[0],
       description: transactionData.description,
     };
 
-    // Gọi API với headers được truyền trực tiếp (nếu api hỗ trợ)
-    const response = await fetch('/api/transactions', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${token}`,
-      },
-      body: JSON.stringify(payload),
-    });
-
-    if (!response.ok) {
-      const errorData = await response.json();
-      throw new Error(errorData.message || 'Thêm giao dịch thất bại');
-    }
-
-    const result = await response.json();
-    const newTransaction = result.data;
     
-    // Chuyển đổi format từ backend sang frontend
+    const validationChecks = {
+      teamId: Number.isInteger(payload.teamId) && payload.teamId > 0,
+      amount: !isNaN(payload.amount) && payload.amount > 0,
+      type: ['income', 'expense'].includes(payload.type),
+      categoryName: !!payload.categoryName && payload.categoryName.trim().length > 0,
+      transactionDate: !!payload.transactionDate
+    };
+
+    const failedValidations = Object.entries(validationChecks)
+      .filter(([key, valid]) => !valid)
+      .map(([key]) => key);
+
+    // if (failedValidations.length > 0) {
+    //   console.error('❌ Validation failed for fields:', failedValidations);
+    //   toast.error(`Dữ liệu không hợp lệ: ${failedValidations.join(', ')}`);
+    //   return;
+    // }
+
+    // console.log('✅ All validations passed, sending to API...');
+    
+    const response = await api.post('/transactions', payload);
+    
+    // console.log('✅ API Success Response:', response.data);
+    
+    // SỬA: response.data chính là transaction object, không có .data wrapper
+    const newTransaction = response.data; 
+    
+    // console.log('New transaction object:', newTransaction);
+    // console.log('New transaction ID:', newTransaction.id);
+    
+    // Tạo frontend transaction
     const frontendTransaction: Transaction = {
-        id: newTransaction.id.toString(),
-        description: newTransaction.description || '',
-        amount: parseFloat(newTransaction.amount),
-        type: newTransaction.type,
-        category: newTransaction.categoryName,
-        createdBy: user.firstName, // Đảm bảo dùng cùng field với filter
-        status: "approved",
-        createdAt: newTransaction.transactionDate || newTransaction.createdAt,
-      };
+      id: newTransaction.id.toString(),
+      description: newTransaction.description || '',
+      amount: parseFloat(newTransaction.amount),
+      type: newTransaction.type,
+      categoryName: newTransaction.categoryName,
+      // category: newTransaction.categoryName,
+      createdBy: user.firstName || user.name || 'Unknown',
+      status: "approved",
+      createdAt: newTransaction.transactionDate || newTransaction.createdAt,
+      userId: user.id,
+    };
+    
+    console.log('Frontend transaction created:', frontendTransaction);
+    
     onUpdateTransaction(frontendTransaction);
     toast.success("Giao dịch đã được thêm thành công!");
+    
   } catch (error: any) {
-    console.error('Add transaction error:', error);
-    const errorMessage = error.message || "Đã xảy ra lỗi khi thêm giao dịch.";
-    toast.error(errorMessage);
+    console.error('❌ Add transaction error:', error);
+    
+    if (error.response) {
+      console.error('Error response:', error.response.data);
+      const errorMessage = error.response.data.message || error.response.data.error || 'Thêm giao dịch thất bại';
+      toast.error(errorMessage);
+    } else if (error.request) {
+      toast.error("Lỗi kết nối mạng. Vui lòng thử lại.");
+    } else {
+      toast.error(error.message || "Đã xảy ra lỗi khi thêm giao dịch.");
+    }
   }
 };
-
 // Data for charts (matching image values) - these should ideally be derived from filteredTransactions
 // Data for charts - derived from filteredTransactions
 const chartData = useMemo(() => {

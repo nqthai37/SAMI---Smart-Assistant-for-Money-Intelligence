@@ -26,6 +26,14 @@ export function QuickAddTransactionDialog({
   onQuickAddTransaction,
 }: QuickAddTransactionDialogProps) {
   const [amount, setAmount] = useState("")
+  const [formData, setFormData] = useState({
+    type: "expense" as "income" | "expense",
+    date: new Date(),
+    description: "",
+    amount: 0,
+    categoryName: "", // Đảm bảo có giá trị mặc định
+    note: ""
+  });
 
   const handleQuickAdd = (template: { name: string; description: string; category: string; icon: string }) => {
     if (!amount || Number.parseFloat(amount) <= 0) {
@@ -52,6 +60,53 @@ export function QuickAddTransactionDialog({
     setAmount("")
     onOpenChange(false)
   }
+
+  // 2. Debug khi category được chọn
+  const handleCategoryChange = (selectedCategory: string) => {
+    console.log('=== CATEGORY SELECTION DEBUG ===');
+    console.log('Selected category:', selectedCategory);
+    console.log('Current formData before update:', formData);
+    
+    setFormData(prev => {
+      const updated = { ...prev, categoryName: selectedCategory };
+      console.log('Updated formData:', updated);
+      return updated;
+    });
+  };
+
+  // 3. Debug khi submit
+  const handleSubmit = async () => {
+    console.log('=== FORM SUBMIT DEBUG ===');
+    console.log('Final formData:', formData);
+    console.log('CategoryName value:', formData.categoryName);
+    console.log('CategoryName type:', typeof formData.categoryName);
+    console.log('CategoryName length:', formData.categoryName?.length);
+    
+    // Validate trước khi gọi handler
+    if (!formData.categoryName || formData.categoryName.trim() === '') {
+      console.error('❌ CategoryName validation failed');
+      toast.error("Vui lòng chọn danh mục cho giao dịch.");
+      return;
+    }
+    
+    console.log('✅ CategoryName validation passed, calling onAddTransaction');
+    
+    try {
+      await onQuickAddTransaction(formData);
+      // Reset form sau khi thành công
+      setFormData({
+        type: "expense",
+        date: new Date(),
+        description: "",
+        amount: 0,
+        categoryName: "",
+        note: ""
+      });
+      onOpenChange(false);
+    } catch (error) {
+      console.error('Submit error:', error);
+    }
+  };
 
   return (
     <Dialog open={isOpen} onOpenChange={onOpenChange}>
@@ -94,6 +149,31 @@ export function QuickAddTransactionDialog({
                 </Button>
               ))}
             </div>
+          </div>
+
+          <div>
+            <Label className="text-sm font-medium text-gray-700 mb-2 block">Danh mục</Label>
+            <select 
+              value={formData.categoryName} 
+              onChange={(e) => {
+                console.log('Select onChange triggered:', e.target.value);
+                handleCategoryChange(e.target.value);
+              }}
+              className="w-full p-2 border rounded-md"
+            >
+              <option value="">-- Chọn danh mục --</option>
+              <option value="Ăn uống">Ăn uống</option>
+              <option value="Di chuyển">Di chuyển</option>
+              <option value="Giải trí">Giải trí</option>
+              <option value="Mua sắm">Mua sắm</option>
+              <option value="Lương">Lương</option>
+              <option value="Khác">Khác</option>
+            </select>
+          </div>
+
+          {/* Debug display */}
+          <div style={{fontSize: '12px', color: 'gray', marginTop: '10px'}}>
+            Debug: CategoryName = "{formData.categoryName}"
           </div>
 
           <div className="flex gap-3 pt-4">

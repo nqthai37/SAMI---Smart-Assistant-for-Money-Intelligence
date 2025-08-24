@@ -41,14 +41,22 @@ export const addTransactionRecord = async (
     throw error;
   }
 
+  // THÊM: Convert transactionDate thành Date object nếu là string
+  let parsedDate: Date;
+  if (typeof transactionData.transactionDate === 'string') {
+    parsedDate = new Date(transactionData.transactionDate + 'T00:00:00.000Z');
+  } else {
+    parsedDate = transactionData.transactionDate;
+  }
+
   // Dữ liệu để tạo transaction mới, kết nối với team và user
   const newTransactionData: Prisma.transactionsCreateInput = {
     amount: transactionData.amount,
-    type: transactionData.type as 'income' | 'expense', // Đảm bảo type hợp lệ
+    type: transactionData.type as 'income' | 'expense',
     categoryName: transactionData.categoryName,
     categoryIcon: transactionData.categoryIcon,
     description: transactionData.description,
-    transactionDate: transactionData.transactionDate,
+    transactionDate: parsedDate, // SỬA: Sử dụng parsedDate thay vì transactionData.transactionDate
     // Kết nối với các bảng liên quan bằng ID
     teams: {
       connect: { id: transactionData.teamId },
@@ -60,7 +68,6 @@ export const addTransactionRecord = async (
 
   return await TransactionModel.create(newTransactionData);
 };
-
 // List transactions for a specific team with pagination
 export const listTransactionsByTeam = async (
   teamId: number,
