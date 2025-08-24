@@ -44,7 +44,7 @@ export default function MainLayout({
         const response = await api.get("/user/notifications")
         setNotifications(response.data || [])
       } catch (error) {
-        toast.error("Không thể tải thông báo.")
+        //toast.error("Không thể tải thông báo.")
       }
     }
     fetchNotifications()

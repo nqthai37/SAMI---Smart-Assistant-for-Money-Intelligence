@@ -509,22 +509,22 @@ const handleDeleteTransaction = async (transactionId: string) => {
     return;
   }
 
-  try {
-    await api.delete(`/transactions/${transactionId}`);
-    
-    // Gọi prop từ component cha để cập nhật UI
-    onDeleteTransaction(transactionId); 
-    
-    toast.success("Giao dịch đã được xóa thành công!");
-  } catch (error: any) {
-    console.error('❌ Delete transaction error:', error);
-    if (error.response) {
-      const errorMessage = error.response.data.message || 'Xóa giao dịch thất bại';
-      toast.error(errorMessage);
-    } else {
-      toast.error("Đã xảy ra lỗi khi xóa giao dịch.");
-    }
-  }
+  try {
+    await api.delete(`/transactions/${transactionId}`);
+    
+    // Gọi prop từ component cha để cập nhật UI
+    onDeleteTransaction(transactionId); 
+    
+    toast.success("Giao dịch đã được xóa thành công!");
+  } catch (error: any) {
+    console.error('❌ Delete transaction error:', error);
+    if (error.response) {
+      const errorMessage = error.response.data.message || 'Xóa giao dịch thất bại';
+      toast.error(errorMessage);
+    } else {
+     toast.error("Đã xảy ra lỗi khi xóa giao dịch.");
+    }
+  }
 };
 // Data for charts (matching image values) - these should ideally be derived from filteredTransactions
 // Data for charts - derived from filteredTransactions

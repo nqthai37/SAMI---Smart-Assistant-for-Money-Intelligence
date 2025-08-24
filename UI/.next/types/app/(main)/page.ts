@@ -1,4 +1,4 @@
-// File: D:\HCMUS\workspace\SAMI---Smart-Assistant-for-Money-Intelligence\UI\app\(main)\page.tsx
+// File: D:\Personal\Ky_VI\SE\Project\SAMI---Smart-Assistant-for-Money-Intelligence\UI\app\(main)\page.tsx
 import * as entry from '../../../../app/(main)/page.js'
 import type { ResolvingMetadata, ResolvingViewport } from 'next/dist/lib/metadata/types/metadata-interface.js'
 

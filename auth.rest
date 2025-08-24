@@ -36,11 +36,9 @@ Content-Type: application/json
 POST http://localhost:8383/api/auth/login
 Content-Type: application/json
 
-<<<<<<< HEAD
-=======
 {
-  "email": "test2612@gmail.com",
-  "password": "password"
+  "email": "khoi10012005@gmail.com",
+  "password": "khoi10012005"
 }
 
 # Test User
@@ -121,7 +119,6 @@ Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6OCwiaWF0IjoxN
 # @name loginRequest
 POST http://localhost:8383/api/auth/login
 Content-Type: application/json
->>>>>>> origin/pdinh
 
 {
   "email": "pdinh@gmail.com",
@@ -129,7 +126,6 @@ Content-Type: application/json
 }
 
 ###
-<<<<<<< HEAD
 POST http://localhost:8383/api/teams/1/send-invite
 Content-Type: application/json
 Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6OCwiaWF0IjoxNzU1NjcyODE3LCJleHAiOjE3NTU2NzY0MTd9.BDHX1GdrB4YLgoUDIhqpTAGYtAUU7H9_ySMgnBP5hu0
@@ -137,7 +133,6 @@ Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6OCwiaWF0IjoxN
 {
   "email": "thai37205@gmail.com"
 }
-=======
 # Tự động lưu token từ phản hồi của request đăng nhập
 @authToken = {{loginRequest.response.body.token}}
 
@@ -170,4 +165,13 @@ Authorization: Bearer {{authToken}}
 # Request này sử dụng token và transactionId đã được lấy tự động
 DELETE http://localhost:8383/api/transactions/{{transactionId}}
 Authorization: Bearer {{authToken}}
->>>>>>> origin/pdinh
+
+###
+# lấy thông tin chi tiết của một team
+
+GET http://localhost:8383/api/teams/10/details
+Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6MTMsImlhdCI6MTc1NjA0NjMxNCwiZXhwIjoxNzU2MDQ5OTE0fQ.BwMrEZ5xhUyO_7oZ1WGewExFyxHtoLU9lKtvLFGESTE
+
+###
+GET http://localhost:8383/api/teams/10/transactions
+Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6MTMsImlhdCI6MTc1NjA0NjMxNCwiZXhwIjoxNzU2MDQ5OTE0fQ.BwMrEZ5xhUyO_7oZ1WGewExFyxHtoLU9lKtvLFGESTE

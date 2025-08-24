@@ -278,18 +278,6 @@ const getTeamDetails = async (teamId: number, userId: number) => {
   };
 }
 
-const createTeam = async (req, res) => {
-  try {
-      const { name } = req.body;
-      const userId = (req as AuthenticatedRequest).user.id;
-      const newTeam = await TeamService.createNewTeam({ name, ownerId: userId });
-      res.status(201).json(newTeam);
-  } catch (error: any) { // Thêm kiểu 'any' cho error
-      console.error('Error creating team:', error);
-      // Trả về status code của lỗi nếu có, mặc định là 500
-      res.status(error.statusCode || 500).json({ message: error.message || 'Server error' });
-  }
-};
 
 const removeMember = async (teamId: number, memberId: number, userId: number) => {
   if (!teamId || !memberId) bad('Thiếu teamId hoặc memberId', 400);
