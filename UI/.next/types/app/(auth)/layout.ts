@@ -1,4 +1,4 @@
-// File: D:\Personal\Ky_VI\SE\Project\SAMI---Smart-Assistant-for-Money-Intelligence\UI\app\(auth)\layout.tsx
+// File: C:\Users\Admin\OneDrive - VNU-HCMUS\University\Năm 2\HK3\SE\Project\Sami\UI\app\(auth)\layout.tsx
 import * as entry from '../../../../app/(auth)/layout.js'
 import type { ResolvingMetadata, ResolvingViewport } from 'next/dist/lib/metadata/types/metadata-interface.js'
 

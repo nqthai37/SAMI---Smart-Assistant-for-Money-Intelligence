@@ -1,6 +1,5 @@
 import axios from 'axios';
 
-
 const apiClient = axios.create({
   baseURL: 'http://localhost:8383/api',
   headers: {
@@ -70,3 +69,21 @@ export const getMyProfile = async () => {
         throw new Error('Đã xảy ra lỗi không xác định.');
     }
 }
+
+/**
+ * Gửi yêu cầu đổi mật khẩu người dùng hiện tại.
+ * @param oldPassword - Mật khẩu cũ.
+ * @param newPassword - Mật khẩu mới.
+ * @returns Promise chứa dữ liệu trả về từ server.
+ */
+export const changeMyPassword = async (oldPassword: string, newPassword: string) => {
+  try {
+    const response = await apiClient.post('/user/change-password', { oldPassword, newPassword });
+    return response.data;
+  } catch (error) {
+    if (axios.isAxiosError(error) && error.response) {
+      throw new Error(error.response.data.message || 'Không thể đổi mật khẩu.');
+    }
+    throw new Error('Đã xảy ra lỗi không xác định khi đổi mật khẩu.');
+  }
+};

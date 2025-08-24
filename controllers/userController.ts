@@ -75,7 +75,7 @@ export const changePassword = async (req: AuthenticatedRequest, res: Response): 
     }
 
     const { oldPassword, newPassword }: { oldPassword: string; newPassword: string } = req.body;
-    await userService.changePassword(userID, oldPassword, newPassword);
+    await userService.changePassword({ id: userID }, oldPassword, newPassword);
 
     return res.json({ message: 'Password changed successfully' });
   } catch (error: any) {

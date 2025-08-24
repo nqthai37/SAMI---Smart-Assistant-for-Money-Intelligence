@@ -7,6 +7,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Eye, EyeOff } from "lucide-react"
 import { toast } from "sonner"
+import { changeMyPassword } from "@/services/user.api"
 
 export function SecuritySettings() {
   const [currentPassword, setCurrentPassword] = useState("")
@@ -33,20 +34,21 @@ export function SecuritySettings() {
       return
     }
 
-    // Mock password change logic
     // In a real app, you'd send currentPassword, newPassword to a backend API
     await new Promise((resolve) => setTimeout(resolve, 1000)) // Simulate API call
 
-    if (currentPassword === "123456") {
-      // Simulate successful password change
-      toast.success("Mật khẩu đã được thay đổi thành công!")
-      setCurrentPassword("")
-      setNewPassword("")
-      setConfirmNewPassword("")
-    } else {
-      toast.error("Mật khẩu hiện tại không đúng.")
-    }
 
+    try {
+      await changeMyPassword(currentPassword, newPassword);
+      toast.success("Đổi mật khẩu thành công!");
+      setCurrentPassword("");
+      setNewPassword("");
+      setConfirmNewPassword("");
+    } catch (err: any) {
+      toast.error(err.message || "Lỗi khi đổi mật khẩu");
+    } finally {
+      setIsLoading(false);
+    }
     setIsLoading(false)
   }
 

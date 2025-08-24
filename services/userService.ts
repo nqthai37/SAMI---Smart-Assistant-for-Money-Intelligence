@@ -187,29 +187,62 @@ export const getNotification = async (
 };
 
 // Change password
+// export const changePassword = async (
+//   userId: number,
+//   oldPassword: string,
+//   newPassword: string
+// ) => {
+//   const user = await UserModel.findByID(userId);
+//   if (!user) throw new Error('User not found');
+  
+//   // Verify old password by comparing with hashed password
+//   const isOldPasswordValid = await bcrypt.compare(oldPassword, user.passwordHash);
+//   if (!isOldPasswordValid) throw new Error('Old password is incorrect');
+
+//   // Hash new password before saving
+//   const newPasswordHash = await bcrypt.hash(newPassword, 10);
+  
+//   // Update password in database
+//   await prisma.user.update({
+//     where: { id: userId },
+//     data: { passwordHash: newPasswordHash }
+//   });
+
+//   return { success: true };
+// };
 export const changePassword = async (
-  userId: number,
+  userIdentifier: { id: number }, // Nhận object chứa id từ token
   oldPassword: string,
   newPassword: string
 ) => {
-  const user = await UserModel.findByID(userId);
-  if (!user) throw new Error('User not found');
-  
-  // Verify old password by comparing with hashed password
-  const isOldPasswordValid = await bcrypt.compare(oldPassword, user.passwordHash);
-  if (!isOldPasswordValid) throw new Error('Old password is incorrect');
+  // Tìm user bằng id lấy từ token
+  const user = await prisma.user.findUnique({
+    where: { id: userIdentifier.id },
+  });
 
-  // Hash new password before saving
+  if (!user) {
+    // Lỗi này không nên xảy ra nếu token hợp lệ, nhưng vẫn cần kiểm tra
+    throw new Error('User not found');
+  }
+  
+  // Xác thực mật khẩu cũ
+  const isOldPasswordValid = await bcrypt.compare(oldPassword, user.passwordHash);
+  if (!isOldPasswordValid) {
+    throw new Error('Mật khẩu hiện tại không chính xác');
+  }
+
+  // Hash mật khẩu mới
   const newPasswordHash = await bcrypt.hash(newPassword, 10);
   
-  // Update password in database
+  // Cập nhật mật khẩu trong database
   await prisma.user.update({
-    where: { id: userId },
+    where: { id: user.id },
     data: { passwordHash: newPasswordHash }
   });
 
   return { success: true };
 };
+
 
 // Search teams (tìm trong teams)
 export const searchTeam = async (query: string) => {
