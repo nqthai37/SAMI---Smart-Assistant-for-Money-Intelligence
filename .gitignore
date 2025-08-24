@@ -3,3 +3,24 @@ node_modules
 .env
 
 /generated/prisma
+# Tạo/sửa file .gitignore
+cat >> UI/.gitignore << EOF
+# Next.js
+.next/
+.next/cache/
+.next/static/webpack/
+.next/server/
+.next/trace
+.next/types/
+
+# Dependencies
+node_modules/
+.pnpm-debug.log*
+
+# Local env files
+.env*.local
+
+# Build outputs
+/dist
+/build
+EOF
