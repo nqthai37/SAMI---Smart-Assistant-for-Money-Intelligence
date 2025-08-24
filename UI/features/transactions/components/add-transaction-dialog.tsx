@@ -16,10 +16,14 @@ import { CalendarIcon } from "lucide-react"
 import { format } from "date-fns"
 import { cn } from "@/lib/utils"
 import { expenseCategories, incomeCategories } from "@/data/categories"
+import type { TeamDetails } from "@/types/user"
+import {useEffect} from "react"
 
+// SỬA: Update interface để nhận team data
 interface AddTransactionDialogProps {
   isOpen: boolean
   onOpenChange: (open: boolean) => void
+  team?: TeamDetails // SỬA: Thêm team prop để lấy categories
   onAddTransaction: (transaction: {
     type: "income" | "expense"
     date: Date
@@ -30,7 +34,12 @@ interface AddTransactionDialogProps {
   }) => void
 }
 
-export function AddTransactionDialog({ isOpen, onOpenChange, onAddTransaction }: AddTransactionDialogProps) {
+export function AddTransactionDialog({ 
+  isOpen, 
+  onOpenChange, 
+  team, // SỬA: Nhận team prop
+  onAddTransaction 
+}: AddTransactionDialogProps) {
   const [transactionType, setTransactionType] = useState<"income" | "expense">("expense")
   const [date, setDate] = useState<Date>(new Date())
   const [description, setDescription] = useState("")
@@ -39,7 +48,33 @@ export function AddTransactionDialog({ isOpen, onOpenChange, onAddTransaction }:
   const [note, setNote] = useState("")
   const [isCalendarOpen, setIsCalendarOpen] = useState(false)
 
-  const availableCategories = transactionType === "expense" ? expenseCategories : incomeCategories
+  // SỬA: Lấy categories từ team thay vì static data
+  const getTeamCategories = (type: "income" | "expense") => {
+    if (!team?.categories || team.categories.length === 0) {
+      // Fallback to default categories if team categories not available
+      return type === "expense" ? expenseCategories : incomeCategories;
+    }
+
+    // SỬA: Filter team categories theo type
+    // Assuming team categories có structure: [{ name: string, icon: string, type?: string }]
+    return team.categories.filter(cat => {
+      // Nếu category có type field
+      if ('type' in cat) {
+        return cat.type === type;
+      }
+      
+      // Nếu không có type field, có thể dựa vào convention naming
+      // Hoặc show tất cả categories cho cả income/expense
+      return true;
+    });
+  }
+
+  const availableCategories = getTeamCategories(transactionType);
+
+  // SỬA: Reset category khi switch type hoặc team categories thay đổi
+  useEffect(() => {
+    setCategory(""); // Reset category when type changes or team changes
+  }, [transactionType, team?.categories]);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
@@ -82,7 +117,11 @@ export function AddTransactionDialog({ isOpen, onOpenChange, onAddTransaction }:
     <Dialog open={isOpen} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto p-6 rounded-2xl bg-white shadow-lg">
         <DialogHeader>
-          <DialogTitle className="text-lg font-semibold text-gray-900">Ghi chép giao dịch mới</DialogTitle>
+          <DialogTitle className="text-lg font-semibold text-gray-900">
+            Ghi chép giao dịch mới
+            {/* SỬA: Hiển thị team name */}
+            {team && <span className="text-sm font-normal text-gray-600 ml-2">- {team.teamName}</span>}
+          </DialogTitle>
           <p className="text-sm text-gray-600">Thêm giao dịch thu nhập hoặc chi tiêu cho nhóm</p>
         </DialogHeader>
 
@@ -148,7 +187,7 @@ export function AddTransactionDialog({ isOpen, onOpenChange, onAddTransaction }:
 
             <div>
               <Label htmlFor="amount" className="text-sm font-medium text-gray-700 mb-2 block">
-                Số tiền (VNĐ)
+                Số tiền
               </Label>
               <Input
                 id="amount"
@@ -157,8 +196,7 @@ export function AddTransactionDialog({ isOpen, onOpenChange, onAddTransaction }:
                 value={amount}
                 onChange={(e) => setAmount(e.target.value)}
                 className="bg-gray-50 border-gray-300"
-                min="0"
-                step="1000"
+                min="0" 
                 required
               />
             </div>
@@ -179,6 +217,7 @@ export function AddTransactionDialog({ isOpen, onOpenChange, onAddTransaction }:
               />
             </div>
 
+            {/* SỬA: Category dropdown với team categories */}
             <div>
               <Label className="text-sm font-medium text-gray-700 mb-2 block">Danh mục</Label>
               <Select value={categoryName} onValueChange={setCategory} required>
@@ -186,16 +225,29 @@ export function AddTransactionDialog({ isOpen, onOpenChange, onAddTransaction }:
                   <SelectValue placeholder="Chọn danh mục" />
                 </SelectTrigger>
                 <SelectContent>
-                  {availableCategories.map((cat) => (
-                    <SelectItem key={cat.name} value={cat.name}>
-                      <div className="flex items-center gap-2">
-                        <span>{cat.icon}</span>
-                        <span>{cat.name}</span>
-                      </div>
+                  {availableCategories.length > 0 ? (
+                    availableCategories.map((cat) => (
+                      <SelectItem key={cat.name} value={cat.name}>
+                        <div className="flex items-center gap-2">
+                          <span>{cat.icon}</span>
+                          <span>{cat.name}</span>
+                        </div>
+                      </SelectItem>
+                    ))
+                  ) : (
+                    <SelectItem value="" disabled>
+                      <span className="text-gray-400">Không có danh mục nào</span>
                     </SelectItem>
-                  ))}
+                  )}
                 </SelectContent>
               </Select>
+              
+              {/* SỬA: Hiển thị thông báo nếu đang dùng default categories */}
+              {(!team?.categories || team.categories.length === 0) && (
+                <p className="text-xs text-orange-600 mt-1">
+                  Đang sử dụng danh mục mặc định. Team chưa có danh mục tùy chỉnh.
+                </p>
+              )}
             </div>
 
             {/* Note */}

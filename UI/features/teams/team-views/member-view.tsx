@@ -15,6 +15,7 @@ import {
   Edit,
   Trash2,
   Search,
+  Banknote,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
@@ -47,8 +48,12 @@ import { useAuth } from "@/lib/auth"; // Import hook useAuth
 import {api} from "@/lib/api"; // Import api instance
 type FilterType = "daily" | "weekly" | "monthly" | "annual" | "all-time"
 
+interface TeamWithCategories extends Team {
+  categories?: { name: string; icon: string }[];
+}
+
 interface MemberViewProps {
-  team: Team
+  team: TeamWithCategories
   onModeChange: (mode: any) => void
   allTransactions: Transaction[] // Pass all transactions for group reports
   onUpdateTransaction: (updatedTransaction: Transaction) => void // New prop
@@ -77,6 +82,7 @@ export function MemberView({
   const [personalDateFilterValue, setPersonalDateFilterValue] = useState<
     Date | { month: number; year: number } | { year: number } | undefined
   >(undefined)
+  
 
   // State for Transaction Filtering
   const [showTransactionFilterDialog, setShowTransactionFilterDialog] = useState(false)
@@ -103,7 +109,7 @@ const formatCurrency = (amount: number, currencyCode: string = "VND") => {
   // Format short date
   const formatShortDate = (dateString: string) => {
     const date = new Date(dateString)
-    return `${date.getDate()}/${date.getMonth() + 1}`
+    return `${date.getDate()}/${date.getMonth() + 1}/${date.getFullYear()}`
   }
 
   // Shorten name
@@ -116,10 +122,52 @@ const formatCurrency = (amount: number, currencyCode: string = "VND") => {
   }
 
   const getCategoryIcon = (categoryName: string, type: "expense" | "income") => {
-    const categories = type === "expense" ? expenseCategories : incomeCategories
-    const category = categories.find((cat) => cat.name === categoryName)
-    return category?.icon || "📦"
-  }
+    // SỬA: Helper để lấy team categories
+    const getTeamCategories = (type: "income" | "expense") => {
+      if (!team?.categories || team.categories.length === 0) {
+        // Fallback categories
+        const defaultExpense = [
+          { name: "Ăn uống", icon: "🍽️" },
+          { name: "Di chuyển", icon: "🚗" },
+          { name: "Mua sắm", icon: "🛒" },
+          { name: "Giải trí", icon: "🎬" },
+          { name: "Sức khỏe", icon: "🏥" },
+          { name: "Khác", icon: "📦" }
+        ];
+        
+        const defaultIncome = [
+          { name: "Lương", icon: "💰" },
+          { name: "Thưởng", icon: "🎁" },
+          { name: "Đầu tư", icon: "📈" },
+          { name: "Bán hàng", icon: "🛍️" },
+          { name: "Khác", icon: "💵" }
+        ];
+        
+        return type === "expense" ? defaultExpense : defaultIncome;
+      }
+  
+      // Parse team categories
+      let categories;
+      try {
+        categories = typeof team.categories === 'string' 
+          ? JSON.parse(team.categories) 
+          : team.categories;
+      } catch {
+        categories = [];
+      }
+  
+      return categories.filter(cat => {
+        if ('type' in cat) {
+          return cat.type === type;
+        }
+        return true;
+      });
+    };
+  
+    const categories = getTeamCategories(type);
+    const category = categories.find((cat) => cat.name === categoryName);
+    return category?.icon || "📦";
+  };
 
   // Helper function to apply date filter to a given array of transactions
   const applyDateFilter = (
@@ -284,14 +332,28 @@ const myExpenseBreakdown = Object.entries(myExpensesByCategory)
     .reduce((sum, t) => sum + parseFloat(t.amount), 0)
   const groupBalance = groupTotalIncome - groupTotalExpenses
 
+  const unfilteredTotalIncome = useMemo(() => 
+    allTransactions
+      .filter((t) => t.type === "income")
+      .reduce((sum, t) => sum + parseFloat(t.amount.toString()), 0),
+    [allTransactions]
+ );
+
+ const unfilteredTotalExpenses = useMemo(() =>
+    allTransactions
+      .filter((t) => t.type === "expense")
+      .reduce((sum, t) => sum + parseFloat(t.amount.toString()), 0),
+    [allTransactions]
+ );
+
   // Monthly revenue calculation based on team data (hardcoded for now, but would use filtered data)
   const monthlyGrowth = 18 // Hardcoded from image
 
   // Calculate progress percentages for group targets
-  const incomeTarget = team.incomeTarget || 50000000 // Use team's target or default
-  const budgetLimit = team.budgetLimit || 40000000 // Use team's budget or default
-  const incomeProgress = (groupTotalIncome / incomeTarget) * 100
-  const budgetProgress = (groupTotalExpenses / budgetLimit) * 100
+  const incomeTarget = team.incomeGoal  
+  const budgetLimit = team.budget  
+  const incomeProgress = (unfilteredTotalIncome / incomeTarget) * 100
+  const budgetProgress = (unfilteredTotalExpenses / budgetLimit) * 100
 
   const handleAcceptRequest = (transactionId: string, requestType: "edit" | "delete") => {
     // console.log(`Accept ${requestType} request for transaction:`, transactionId)
@@ -446,6 +508,8 @@ const handleAddTransaction = async (transactionData: {
     console.log('Frontend transaction created:', frontendTransaction);
     
     onUpdateTransaction(frontendTransaction);
+
+    toast.success("Giao dịch đã được thêm thành công!");
     
   } catch (error: any) {
     console.error('❌ Add transaction error:', error);
@@ -485,8 +549,9 @@ const handleEditTransaction = async (updatedTransaction: Transaction) => {
     
     // Cập nhật lại giao dịch trong state của component cha
     onUpdateTransaction(response.data);
-    toast.success("Giao dịch đã được cập nhật thành công!");
     setShowEditTransactionDialog(false);
+    // Reload the transactions to reflect changes
+    onModeChange('transactions'); 
     
   } catch (error: any) {
     console.error('❌ Edit transaction error:', error);
@@ -536,7 +601,7 @@ const chartData = useMemo(() => {
   const incomeByCategory = filteredTransactions
     .filter(t => t.type === 'income')
     .reduce((acc, t) => {
-      const categoryName = t.categoryName || t.category || 'Khác';
+      const categoryName = t.categoryName || 'Khác';
       const amount = parseFloat(t.amount.toString()) || 0; // Đảm bảo convert đúng
       acc[categoryName] = (acc[categoryName] || 0) + amount;
       return acc;
@@ -631,19 +696,19 @@ const chartData = useMemo(() => {
 
   // Helper to create Bar Chart SVG for General
   const createBarChart = (income: number, expense: number) => {
-    const maxVal = Math.max(income, expense)
+    const maxOverallValue = Math.max(income, expense);
+    const maxVal = maxOverallValue > 0 ? maxOverallValue : 1;
     const incomeHeight = (income / maxVal) * 96 // Max height 96px
     const expenseHeight = (expense / maxVal) * 96 // Max height 96px
-
     return (
       <div className="flex items-end justify-center gap-8 h-32 mb-4">
         <div className="flex flex-col items-center">
           <div className="w-12 rounded-t-lg bg-green-500" style={{ height: `${incomeHeight}px` }}></div>
-          <span className="text-sm text-gray-600 mt-2">Income</span>
+          <span className="text-sm text-gray-600 mt-2">Thu nhập</span>
         </div>
         <div className="flex flex-col items-center">
           <div className="w-12 rounded-t-lg bg-red-500" style={{ height: `${expenseHeight}px` }}></div>
-          <span className="text-sm text-gray-600 mt-2">Expense</span>
+          <span className="text-sm text-gray-600 mt-2">Chi tiêu</span>
         </div>
       </div>
     )
@@ -690,8 +755,8 @@ const chartData = useMemo(() => {
 
 
 const createLineChart = () => {
-  const width = 700
-  const height = 250
+  const width = 1000
+  const height = 300
   const padding = 60
   const chartWidth = width - padding * 2
   const chartHeight = height - padding * 2
@@ -819,25 +884,6 @@ const createLineChart = () => {
             </text>
           )
         })}
-
-        {/* Axis titles */}
-        <text
-          x={20}
-          y={padding + chartHeight / 2}
-          textAnchor="middle"
-          className="text-xs fill-gray-600 font-medium"
-          transform={`rotate(-90, 20, ${padding + chartHeight / 2})`}
-        >
-          Số tiền (VNĐ)
-        </text>
-        <text
-          x={padding + chartWidth / 2}
-          y={height - 5}
-          textAnchor="middle"
-          className="text-xs fill-gray-600 font-medium"
-        >
-          Tháng
-        </text>
       </svg>
     </div>
   )
@@ -966,26 +1012,6 @@ const createLineChart = () => {
           {" "}
           {/* Added flex container */}
           <h2 className="text-xl font-bold text-gray-900">Báo cáo tài chính cá nhân</h2>
-          <div className="flex items-center gap-2">
-            <Button
-              variant="outline"
-              className="flex items-center gap-2 bg-transparent"
-              onClick={() => setShowPersonalDateFilterDialog(true)}
-            >
-              {getDateFilterLabel(personalDateFilterType, personalDateFilterValue)}
-              <ChevronDown className="w-4 h-4" />
-            </Button>
-            <DateFilterDialog
-              isOpen={showPersonalDateFilterDialog}
-              onOpenChange={setShowPersonalDateFilterDialog}
-              onConfirm={(type, value) => {
-                setPersonalDateFilterType(type)
-                setPersonalDateFilterValue(value)
-              }}
-              initialFilterType={personalDateFilterType}
-              initialDate={personalDateFilterValue instanceof Date ? personalDateFilterValue : new Date()}
-            />
-          </div>
         </div>
 
         {/* Personal Analytics Charts */}
@@ -1064,11 +1090,34 @@ const createLineChart = () => {
                 onChange={(e) => setMyTransactionSearchTerm(e.target.value)}
               />
             </div>
+            {/* SỬA: Personal Date Filter với tên mới */}
+            <Button 
+              variant="outline" 
+              size="sm" 
+              onClick={() => setShowPersonalDateFilterDialog(true)}
+              className="flex items-center gap-2"
+            >
+              <Calendar className="w-4 h-4" />
+              {getDateFilterLabel(personalDateFilterType, personalDateFilterValue)}
+              <ChevronDown className="w-4 h-4" />
+            </Button>
+            
+            {/* SỬA: Other Filter Button với tên khác */}
             <Button variant="outline" size="sm">
               <Filter className="w-4 h-4 mr-2" />
-              Lọc
+              Bộ lọc
             </Button>
           </div>
+          <DateFilterDialog
+            isOpen={showPersonalDateFilterDialog}
+            onOpenChange={setShowPersonalDateFilterDialog}
+            onConfirm={(type, value) => {
+              setPersonalDateFilterType(type)
+              setPersonalDateFilterValue(value)
+            }}
+            initialFilterType={personalDateFilterType}
+            initialDate={personalDateFilterValue instanceof Date ? personalDateFilterValue : new Date()}
+          />
         </CardHeader>
         <CardContent>
           <Tabs defaultValue="all" className="w-full">
@@ -1079,51 +1128,61 @@ const createLineChart = () => {
 
             <TabsContent value="all" className="space-y-4 mt-4">
               {myTransactions.map((transaction) => (
-              <div key={transaction.id} className="bg-white rounded-lg shadow-sm border p-4 mb-3">
-    <div className="flex justify-between items-start mb-2">
-      <div className="flex-1">
-        <h3 className="font-semibold text-gray-900 mb-1">
-          {transaction.description}
-        </h3>
-        <p className="text-sm text-gray-500 mb-1">
-          {formatShortDate(transaction.createdAt)}
-        </p>
-        <span className="inline-block px-2 py-1 text-xs rounded-full bg-green-100 text-green-800">
-          {transaction.categoryName}
-        </span>
-      </div>
-      
-      <div className="text-right">
-        <p className={`text-lg font-bold mb-2 ${
-          transaction.type === "income" ? "text-green-600" : "text-red-600"
-        }`}>
-          {transaction.type === "income" ? "+" : "-"}{formatCurrency(transaction.amount, team.currency||'VND')}
-        </p>
-        
-        {/* CHUYỂN CÁC NÚT VỀ BÊN PHẢI, DƯỚI TIỀN */}
-        <div className="flex gap-2 justify-end">
-          <button
-            onClick={() => {
-              setSelectedTransactionToEdit(transaction);
-              setShowEditTransactionDialog(true);
-            }}
-            className="flex items-center gap-1 text-blue-600 hover:text-blue-800"
-          >
-            <Edit className="h-4 w-4" />
-          </button>
-          <button
-            onClick={() => {
-              handleDeleteTransaction(transaction.id);
-            }}
-            className="flex items-center gap-1 text-red-600 hover:text-red-800"
-          >
-            <Trash2 className="h-4 w-4" />
-          </button>
-        </div>
-      </div>
-    </div>
-  </div>
-))}
+                <div key={transaction.id} className="bg-white rounded-lg shadow-sm border p-4 mb-3">
+                  <div className="flex justify-between items-start mb-2">
+                    <div className="flex-1">
+                      {/* SỬA: Thêm icon vào description */}
+                      <div className="flex items-center gap-2 mb-1">
+                        <span className="text-lg">
+                          {getCategoryIcon(transaction.categoryName, transaction.type)}
+                        </span>
+                        <h3 className="font-semibold text-gray-900">
+                          {transaction.description}
+                        </h3>
+                      </div>
+                      
+                      {/* SỬA: Thời gian và category trên cùng một dòng */}
+                      <div className="flex items-center gap-3 mb-1">
+                        <span className="inline-flex items-center gap-1 px-2 py-1 text-xs rounded-full bg-green-100 text-green-800">
+                          {transaction.categoryName}
+                        </span>
+                        <span className="text-sm text-gray-500">
+                          {formatShortDate(transaction.createdAt)}
+                        </span>
+                      </div>
+                    </div>
+                    
+                    <div className="text-right">
+                      <p className={`text-lg font-bold mb-2 ${
+                        transaction.type === "income" ? "text-green-600" : "text-red-600"
+                      }`}>
+                        {transaction.type === "income" ? "+" : "-"}{formatCurrency(transaction.amount, team.currency||'VND')}
+                      </p>
+                      
+                      {/* Giữ nguyên phần buttons */}
+                      <div className="flex gap-2 justify-end">
+                        <button
+                          onClick={() => {
+                            setSelectedTransactionToEdit(transaction);
+                            setShowEditTransactionDialog(true);
+                          }}
+                          className="flex items-center gap-1 text-blue-600 hover:text-blue-800"
+                        >
+                          <Edit className="h-4 w-4" />
+                        </button>
+                        <button
+                          onClick={() => {
+                            handleDeleteTransaction(transaction.id);
+                          }}
+                          className="flex items-center gap-1 text-red-600 hover:text-red-800"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              ))}
             </TabsContent>
 
             {/* <TabsContent value="requests" className="space-y-4 mt-4">
@@ -1207,7 +1266,7 @@ const createLineChart = () => {
                     </p>
                     <p className="text-xs text-gray-600 mt-1">Tổng tích lũy</p>
                   </div>
-                  <DollarSign className={`w-8 h-8 ${groupBalance >= 0 ? "text-green-600" : "text-red-600"}`} />
+                  <Banknote className={`w-8 h-8 ${groupBalance >= 0 ? "text-green-600" : "text-red-600"}`} />
                 </div>
               </CardContent>
             </Card>
@@ -1218,7 +1277,7 @@ const createLineChart = () => {
                   <div>
                     <p className="text-sm font-medium text-gray-600">Doanh thu tháng này</p>
                     <p className="text-2xl font-bold text-blue-600">{formatCurrency(groupTotalIncome, team.currency)}</p>
-                    <p className="text-xs text-green-600 mt-1">+{monthlyGrowth}% so với tháng trước</p>
+                    {/* <p className="text-xs text-green-600 mt-1">+{monthlyGrowth}% so với tháng trước</p> */}
                   </div>
                   <TrendingUp className="w-8 h-8 text-blue-600" />
                 </div>
@@ -1258,7 +1317,7 @@ const createLineChart = () => {
                   </div>
                   <div className="flex justify-between items-center">
                     <span className="text-sm text-gray-600">Hiện tại:</span>
-                    <span className="font-semibold">{formatCurrency(groupTotalIncome, team.currency)}</span>
+                    <span className="font-semibold">{formatCurrency(unfilteredTotalIncome, team.currency)}</span>
                   </div>
                   <div className="space-y-2">
                     <div className="flex justify-between items-center">
@@ -1267,10 +1326,31 @@ const createLineChart = () => {
                     </div>
                     <Progress value={incomeProgress} className="h-3" />
                   </div>
-                  <div className="text-sm text-gray-600">
-                    Còn thiếu: {formatCurrency(incomeTarget - groupTotalIncome, team.currency)}
+                   {/* SỬA: Thêm thông báo khi đạt mục tiêu */}
+                {incomeProgress >= 100 ? (
+                  <div className="bg-green-50 border border-green-200 rounded-lg p-3">
+                    <div className="flex items-center gap-2">
+                      <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
+                      <span className="text-sm font-medium text-green-800">🎉 Chúc mừng! Đã hoàn thành mục tiêu thu nhập</span>
+                    </div>
+                    <p className="text-xs text-green-600 mt-1">
+                      Vượt mục tiêu: {formatCurrency(unfilteredTotalIncome - (team.incomeGoal || 0), team.currency)}
+                    </p>
                   </div>
-                </div>
+                ) : incomeProgress >= 80 ? (
+                  <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3">
+                    <div className="flex items-center gap-2">
+                      <div className="w-2 h-2 bg-yellow-500 rounded-full animate-pulse"></div>
+                      <span className="text-sm font-medium text-yellow-800">🚀 Sắp đạt mục tiêu!</span>
+                    </div>
+                    <p className="text-xs text-yellow-600 mt-1">
+                      Còn thiếu: {formatCurrency(Math.max(0, (team.incomeGoal || 0) - unfilteredTotalIncome), team.currency)}
+                    </p>
+                  </div>
+                ) : (
+                  <div className="text-sm text-gray-600">Còn thiếu: {formatCurrency(Math.max(0, (team.incomeGoal || 0) - unfilteredTotalIncome))}</div>
+                )}
+              </div>
               </CardContent>
             </Card>
 
@@ -1290,7 +1370,7 @@ const createLineChart = () => {
                   </div>
                   <div className="flex justify-between items-center">
                     <span className="text-sm text-gray-600">Đã chi:</span>
-                    <span className="font-semibold">{formatCurrency(groupTotalExpenses, team.currency)}</span>
+                    <span className="font-semibold">{formatCurrency(unfilteredTotalExpenses, team.currency)}</span>
                   </div>
                   <div className="space-y-2">
                     <div className="flex justify-between items-center">
@@ -1299,10 +1379,41 @@ const createLineChart = () => {
                     </div>
                     <Progress value={budgetProgress} className="h-3" />
                   </div>
-                  <div className="text-sm text-gray-600">
-                    Còn lại: {formatCurrency(budgetLimit - groupTotalExpenses)}
-                  </div>
-                </div>
+                  {/* SỬA: Thêm cảnh báo ngân sách */}
+                                {budgetProgress >= 100 ? (
+                                  <div className="bg-red-50 border border-red-200 rounded-lg p-3">
+                                    <div className="flex items-center gap-2">
+                                      <AlertTriangle className="w-4 h-4 text-red-500" />
+                                      <span className="text-sm font-medium text-red-800">⚠️ Đã vượt ngân sách!</span>
+                                    </div>
+                                    <p className="text-xs text-red-600 mt-1">
+                                      Vượt quá: {formatCurrency(unfilteredTotalExpenses - (team.budget || 0), team.currency)}
+                                    </p>
+                                  </div>
+                                ) : budgetProgress >= 90 ? (
+                                  <div className="bg-orange-50 border border-orange-200 rounded-lg p-3">
+                                    <div className="flex items-center gap-2">
+                                      <AlertTriangle className="w-4 h-4 text-orange-500" />
+                                      <span className="text-sm font-medium text-orange-800">⚠️ Gần hết ngân sách!</span>
+                                    </div>
+                                    <p className="text-xs text-orange-600 mt-1">
+                                      Còn lại: {formatCurrency(Math.max(0, (team.budget || 0) - unfilteredTotalExpenses))}
+                                    </p>
+                                  </div>
+                                ) : budgetProgress >= 75 ? (
+                                  <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3">
+                                    <div className="flex items-center gap-2">
+                                      <div className="w-2 h-2 bg-yellow-500 rounded-full"></div>
+                                      <span className="text-sm font-medium text-yellow-800">💡 Cần chú ý chi tiêu</span>
+                                    </div>
+                                    <p className="text-xs text-yellow-600 mt-1">
+                                      Còn lại: {formatCurrency(Math.max(0, (team.budget || 0) - unfilteredTotalExpenses))}
+                                    </p>
+                                  </div>
+                                ) : (
+                                  <div className="text-sm text-gray-600">Còn lại: {formatCurrency(Math.max(0, (team.budget || 0) - groupTotalExpenses))}</div>
+                                )}
+                              </div>
               </CardContent>
             </Card>
           </div>
@@ -1310,27 +1421,7 @@ const createLineChart = () => {
           {/* Unified Reports and Transactions Section */}
           <Card>
             <CardHeader className="flex flex-row items-center justify-between">
-              <CardTitle>Báo cáo</CardTitle>
-              <div className="flex items-center gap-2">
-                <Button
-                  variant="outline"
-                  className="flex items-center gap-2 bg-transparent"
-                  onClick={() => setShowDateFilterDialog(true)}
-                >
-                  {getDateFilterLabel(currentDateFilterType, currentDateFilterValue)}
-                  <ChevronDown className="w-4 h-4" />
-                </Button>
-                <DateFilterDialog
-                  isOpen={showDateFilterDialog}
-                  onOpenChange={setShowDateFilterDialog}
-                  onConfirm={(type, value) => {
-                    setCurrentDateFilterType(type)
-                    setCurrentDateFilterValue(value)
-                  }}
-                  initialFilterType={currentDateFilterType}
-                  initialDate={currentDateFilterValue instanceof Date ? currentDateFilterValue : new Date()}
-                />
-              </div>
+              <CardTitle>Báo cáo thường niên</CardTitle>
             </CardHeader>
             <CardContent className="space-y-6">
               {/* Monthly Income/Expense Trend Chart (Moved to top) */}
@@ -1340,7 +1431,30 @@ const createLineChart = () => {
                 </CardHeader>
                 <CardContent>{createLineChart()}</CardContent>
               </Card>
-
+              
+              <div className="flex items-center justify-between py-4 border-b border-gray-200">
+                <h3 className="text-lg font-semibold text-gray-900">Phân tích chi tiết</h3>
+                <div className="flex items-center gap-2">
+                  <Button
+                    variant="outline"
+                    className="flex items-center gap-2 bg-transparent"
+                    onClick={() => setShowDateFilterDialog(true)}
+                  >
+                    {getDateFilterLabel(currentDateFilterType, currentDateFilterValue)}
+                    <ChevronDown className="w-4 h-4" />
+                  </Button>
+                  <DateFilterDialog
+                    isOpen={showDateFilterDialog}
+                    onOpenChange={setShowDateFilterDialog}
+                    onConfirm={(type, value) => {
+                      setCurrentDateFilterType(type)
+                      setCurrentDateFilterValue(value)
+                    }}
+                    initialFilterType={currentDateFilterType}
+                    initialDate={currentDateFilterValue instanceof Date ? currentDateFilterValue : new Date()}
+                  />
+                </div>
+              </div>
               {/* Analytics and Charts - Top Row */}
               <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                 {/* General Bar Chart */}
@@ -1412,6 +1526,7 @@ const createLineChart = () => {
       <AddTransactionDialog
         isOpen={showAddTransactionDialog}
         onOpenChange={setShowAddTransactionDialog}
+        team={team}
         onAddTransaction={handleAddTransaction}
       />
       {/* Edit Transaction Dialog */}
@@ -1419,6 +1534,7 @@ const createLineChart = () => {
         isOpen={showEditTransactionDialog}
         onOpenChange={setShowEditTransactionDialog}
         transaction={selectedTransactionToEdit}
+        team={team}
         onSaveTransaction={handleEditTransaction}
       />
       {/* Quick Add Transaction Dialog */}

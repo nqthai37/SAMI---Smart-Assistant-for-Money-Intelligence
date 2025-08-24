@@ -15,18 +15,24 @@ import { cn } from "@/lib/utils"
 import type { Transaction } from "@/types/user"
 import { expenseCategories, incomeCategories } from "@/data/categories"
 import { toast } from "sonner"
+import type { TeamDetails } from "@/types/user"
 
 interface EditTransactionDialogProps {
   isOpen: boolean
   onOpenChange: (open: boolean) => void
   transaction: Transaction | null
+  team?: TeamDetails // SỬA: Thêm team prop
   onSaveTransaction: (updatedTransaction: Transaction) => void
 }
+
+// SỬA: Helper function để lấy team categories
+
 
 export function EditTransactionDialog({
   isOpen,
   onOpenChange,
   transaction,
+  team, // SỬA: Nhận team prop
   onSaveTransaction,
 }: EditTransactionDialogProps) {
   const [type, setType] = useState<"income" | "expense">("expense")
@@ -36,16 +42,47 @@ export function EditTransactionDialog({
   const [category, setCategory] = useState("")
   const [note, setNote] = useState("")
 
+
+  const getTeamCategories = (type: "income" | "expense") => {
+    if (!team?.categories || team.categories.length === 0) {
+      // Fallback to default categories
+      return type === "expense" ? expenseCategories : incomeCategories;
+    }
+  
+    // Filter team categories theo type
+    return team.categories.filter(cat => {
+      if ('type' in cat) {
+        return cat.type === type;
+      }
+      return true; // Show all if no type specified
+    });
+  };
+  
+  // SỬA: Helper để get category name từ transaction
+  const getTransactionCategory = (transaction: Transaction) => {
+    return transaction.categoryName || transaction.category || "";
+  };
   useEffect(() => {
     if (transaction) {
       setType(transaction.type)
       setDate(new Date(transaction.createdAt))
       setDescription(transaction.description)
       setAmount(transaction.amount.toString())
-      setCategory(transaction.category)
+      
+      // SỬA: Set đúng category hiện tại từ transaction
+      const currentCategory = getTransactionCategory(transaction);
+      setCategory(currentCategory)
+      
       setNote(transaction.note || "")
+      
+      console.log('🔧 Editing transaction:', {
+        id: transaction.id,
+        currentCategory,
+        categoryName: transaction.categoryName,
+        category: transaction.category
+      });
     } else {
-      // Reset form when dialog opens without a transaction (e.g., for new transaction)
+      // Reset form
       setType("expense")
       setDate(new Date())
       setDescription("")
@@ -54,6 +91,22 @@ export function EditTransactionDialog({
       setNote("")
     }
   }, [transaction, isOpen])
+
+  // SỬA: Reset category khi thay đổi type
+  useEffect(() => {
+    if (transaction) {
+      // Khi edit, check xem category hiện tại có valid cho type mới không
+      const currentCategory = getTransactionCategory(transaction);
+      const availableCategories = getTeamCategories(type);
+      const categoryExists = availableCategories.some(cat => cat.name === currentCategory);
+      
+      if (!categoryExists) {
+        setCategory(""); // Reset nếu category không valid cho type mới
+      }
+    }
+  }, [type, team?.categories, transaction])
+
+  const availableCategories = getTeamCategories(type);
 
   const handleSave = () => {
     if (!description || !amount || !category || !date) {
@@ -72,27 +125,31 @@ export function EditTransactionDialog({
       return
     }
 
+    // SỬA: Update transaction với đúng fields
     const updatedTransaction: Transaction = {
       ...transaction,
       type,
       createdAt: format(date, "yyyy-MM-dd"),
       description,
       amount: parsedAmount,
+      
+      // SỬA: Update cả category và categoryName để backward compatible
       category,
+      categoryName: category,
+      
       note,
-      // Assuming status remains approved after edit by member
       status: "approved",
       requestedBy: undefined,
       requestReason: undefined,
       requestedAt: undefined,
     }
 
+    console.log('💾 Saving updated transaction:', updatedTransaction);
+    
     onSaveTransaction(updatedTransaction)
     toast.success("Giao dịch đã được cập nhật thành công!")
     onOpenChange(false)
   }
-
-  const categories = type === "expense" ? expenseCategories : incomeCategories
 
   return (
     <Dialog open={isOpen} onOpenChange={onOpenChange}>
@@ -166,13 +223,36 @@ export function EditTransactionDialog({
                 <SelectValue placeholder="Chọn danh mục" />
               </SelectTrigger>
               <SelectContent>
-                {categories.map((cat) => (
-                  <SelectItem key={cat.name} value={cat.name}>
-                    {cat.icon} {cat.name}
+                {availableCategories.length > 0 ? (
+                  availableCategories.map((cat) => (
+                    <SelectItem key={cat.name} value={cat.name}>
+                      <div className="flex items-center gap-2">
+                        <span>{cat.icon}</span>
+                        <span>{cat.name}</span>
+                      </div>
+                    </SelectItem>
+                  ))
+                ) : (
+                  <SelectItem value="" disabled>
+                    <span className="text-gray-400">Không có danh mục nào</span>
                   </SelectItem>
-                ))}
+                )}
               </SelectContent>
             </Select>
+            
+            {/* SỬA: Hiển thị thông báo nếu đang dùng default categories */}
+            {(!team?.categories || team.categories.length === 0) && (
+              <div className="col-span-4 text-xs text-orange-600 text-center">
+                Đang sử dụng danh mục mặc định. Team chưa có danh mục tùy chỉnh.
+              </div>
+            )}
+            
+            {/* SỬA: Hiển thị warning nếu category không tồn tại */}
+            {transaction && category && !availableCategories.some(cat => cat.name === category) && (
+              <div className="col-span-4 text-xs text-red-600 text-center">
+                ⚠️ Danh mục "{category}" không còn tồn tại trong team
+              </div>
+            )}
           </div>
           <div className="grid grid-cols-4 items-center gap-4">
             <Label htmlFor="note" className="text-right">

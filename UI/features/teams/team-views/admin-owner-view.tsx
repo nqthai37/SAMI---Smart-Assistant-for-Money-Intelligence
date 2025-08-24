@@ -49,8 +49,12 @@ import { useRouter } from "next/navigation"
 
 type FilterType = "daily" | "weekly" | "monthly" | "annual" | "all-time"
 
+interface TeamWithCategories extends Team {
+  categories?: { name: string; icon: string }[];
+}
+
 interface AdminOwnerViewProps {
-  team: Team
+  team: TeamWithCategories
   onModeChange: (mode: any) => void
   onUpdateTeam: (updatedTeam: Team) => void
   allTransactions: Transaction[]
@@ -101,6 +105,47 @@ export function AdminOwnerView({
   const [deleteReason, setDeleteReason] = useState("")
   const [searchQuery, setSearchQuery] = useState("")
   // --- UTILS ---
+  const getTeamCategories = (type: "income" | "expense") => {
+    if (!team?.categories || team.categories.length === 0) {
+      // SỬA: Fallback categories nếu team chưa có
+      const defaultExpense = [
+        { name: "Ăn uống", icon: "🍽️" },
+        { name: "Di chuyển", icon: "🚗" },
+        { name: "Mua sắm", icon: "🛒" },
+        { name: "Giải trí", icon: "🎬" },
+        { name: "Sức khỏe", icon: "🏥" },
+        { name: "Khác", icon: "📦" }
+      ];
+      
+      const defaultIncome = [
+        { name: "Lương", icon: "💰" },
+        { name: "Thưởng", icon: "🎁" },
+        { name: "Đầu tư", icon: "📈" },
+        { name: "Bán hàng", icon: "🛍️" },
+        { name: "Khác", icon: "💵" }
+      ];
+      
+      return type === "expense" ? defaultExpense : defaultIncome;
+    }
+
+    // SỬA: Parse team categories nếu là JSON string
+    let categories;
+    try {
+      categories = typeof team.categories === 'string' 
+        ? JSON.parse(team.categories) 
+        : team.categories;
+    } catch {
+      categories = [];
+    }
+
+    // SỬA: Filter theo type nếu có
+    return categories.filter(cat => {
+      if ('type' in cat) {
+        return cat.type === type;
+      }
+      return true; // Show all if no type specified
+    });
+  };
   const formatCurrency = (amount: number, currencyCode: string = "VND") => {
     console.log({amount, currencyCode})
     return new Intl.NumberFormat("vi-VN", { 
@@ -111,7 +156,7 @@ export function AdminOwnerView({
 
   const formatShortDate = (dateString: string) => {
     const date = new Date(dateString)
-    return `${date.getDate()}/${date.getMonth() + 1}`
+    return `${date.getDate()}/${date.getMonth() + 1}/${date.getFullYear()}`
   }
 
   const shortenName = (name: string) => {
@@ -121,10 +166,10 @@ export function AdminOwnerView({
   }
 
   const getCategoryIcon = (categoryName: string, type: "expense" | "income") => {
-    const categories = type === "expense" ? expenseCategories : incomeCategories
-    const category = categories.find((cat) => cat.name === categoryName)
-    return category?.icon || "📦"
-  }
+    const categories = getTeamCategories(type);
+    const category = categories.find((cat) => cat.name === categoryName);
+    return category?.icon || "📦";
+  };
 
   // --- DATA PROCESSING ---
   const filteredTransactions = useMemo(() => {
@@ -182,29 +227,94 @@ export function AdminOwnerView({
 
   const currentBalance = currentTotalIncome - currentTotalExpenses
 
+  const unfilteredTotalIncome = useMemo(() => 
+    allTransactions
+      .filter((t) => t.type === "income")
+      .reduce((sum, t) => sum + parseFloat(t.amount.toString()), 0),
+    [allTransactions]
+ );
+
+ const unfilteredTotalExpenses = useMemo(() =>
+    allTransactions
+      .filter((t) => t.type === "expense")
+      .reduce((sum, t) => sum + parseFloat(t.amount.toString()), 0),
+    [allTransactions]
+ );
   const { currentMonthIncome, monthlyGrowth } = useMemo(() => {
     const now = new Date()
     const currentMonth = now.getMonth()
     const currentYear = now.getFullYear()
     
-    const lastMonthDate = new Date(now.setMonth(now.getMonth() - 1))
+    // SỬA: Tạo object Date mới cho lastMonth thay vì modify `now`
+    const lastMonthDate = new Date(now) // Clone object
+    lastMonthDate.setMonth(lastMonthDate.getMonth() - 1)
     const lastMonth = lastMonthDate.getMonth()
     const lastMonthYear = lastMonthDate.getFullYear()
-
+  
+    console.log('📅 Date calculation:', {
+      currentMonth: currentMonth + 1, // +1 để hiển thị human-readable
+      currentYear,
+      lastMonth: lastMonth + 1,
+      lastMonthYear
+    });
+  
     const currentMonthIncome = allTransactions
       .filter(t => {
         const d = new Date(t.createdAt)
-        return t.type === "income" && d.getMonth() === currentMonth && d.getFullYear() === currentYear
+        const tMonth = d.getMonth()
+        const tYear = d.getFullYear()
+        
+        // SỬA: Debug từng transaction
+        const isCurrentMonth = t.type === "income" && tMonth === currentMonth && tYear === currentYear;
+        if (isCurrentMonth) {
+          console.log('💰 Current month income transaction:', {
+            description: t.description,
+            amount: t.amount,
+            date: t.createdAt,
+            month: tMonth + 1,
+            year: tYear
+          });
+        }
+        
+        return isCurrentMonth;
       })
       .reduce((sum, t) => sum + Number(t.amount), 0)
       
     const lastMonthIncome = allTransactions
       .filter(t => {
         const d = new Date(t.createdAt)
-        return t.type === "income" && d.getMonth() === lastMonth && d.getFullYear() === lastMonthYear
+        const tMonth = d.getMonth()
+        const tYear = d.getFullYear()
+        
+        // SỬA: Debug last month transactions
+        const isLastMonth = t.type === "income" && tMonth === lastMonth && tYear === lastMonthYear;
+        if (isLastMonth) {
+          console.log('💰 Last month income transaction:', {
+            description: t.description,
+            amount: t.amount,
+            date: t.createdAt,
+            month: tMonth + 1,
+            year: tYear
+          });
+        }
+        
+        return isLastMonth;
       })
       .reduce((sum, t) => sum + Number(t.amount), 0)
-
+  
+    console.log('📊 Monthly income calculation:', {
+      currentMonthIncome,
+      lastMonthIncome,
+      currentMonthTransactionCount: allTransactions.filter(t => {
+        const d = new Date(t.createdAt)
+        return t.type === "income" && d.getMonth() === currentMonth && d.getFullYear() === currentYear
+      }).length,
+      lastMonthTransactionCount: allTransactions.filter(t => {
+        const d = new Date(t.createdAt)
+        return t.type === "income" && d.getMonth() === lastMonth && d.getFullYear() === lastMonthYear
+      }).length
+    });
+  
     const growth = lastMonthIncome === 0 
       ? (currentMonthIncome > 0 ? 100 : 0)
       : ((currentMonthIncome - lastMonthIncome) / lastMonthIncome) * 100
@@ -212,8 +322,8 @@ export function AdminOwnerView({
     return { currentMonthIncome, monthlyGrowth: growth }
   }, [allTransactions])
 
-  const incomeProgress = Math.min((currentTotalIncome / (team.incomeGoal || 1)) * 100, 100)
-  const budgetProgress = Math.min((currentTotalExpenses / (team.budget || 1)) * 100, 100)
+  const incomeProgress = Math.min((unfilteredTotalIncome / (team.incomeGoal || 1)) * 100, 100)
+  const budgetProgress = Math.min((unfilteredTotalExpenses / (team.budget || 1)) * 100, 100)
 
   // --- DYNAMIC CHART DATA CALCULATION ---
 
@@ -461,8 +571,8 @@ export function AdminOwnerView({
 
     // Helper to create Line Chart SVG
     const createLineChart = () => {
-        const width = 700
-        const height = 250
+        const width = 1100
+        const height = 300
         const padding = 60
         const chartWidth = width - padding * 2
         const chartHeight = height - padding * 2
@@ -534,13 +644,41 @@ export function AdminOwnerView({
                 </text>
                 )
             })}
+            {/* Axis titles */}
             </svg>
         </div>
         )
     }
 
-  const getDateFilterLabel = () => {
-    // ... logic không đổi
+  const getDateFilterLabel = (
+    filterType: FilterType,
+    filterValue: Date | { month: number; year: number } | { year: number } | undefined,
+  ) => {
+    if (filterType === "all-time") return "Tất cả thời gian"
+    if (filterType === "daily" && filterValue instanceof Date) {
+      return `Ngày ${filterValue.getDate()}/${filterValue.getMonth() + 1}/${filterValue.getFullYear()}`
+    }
+    if (filterType === "monthly" && filterValue && "month" in filterValue) {
+      const monthNames = [
+        "Tháng 1",
+        "Tháng 2",
+        "Tháng 3",
+        "Tháng 4",
+        "Tháng 5",
+        "Tháng 6",
+        "Tháng 7",
+        "Tháng 8",
+        "Tháng 9",
+        "Tháng 10",
+        "Tháng 11",
+        "Tháng 12",
+      ]
+      return `${monthNames[filterValue.month]}, ${filterValue.year}`
+    }
+    if (filterType === "annual" && filterValue && "year" in filterValue) {
+      return `Năm ${filterValue.year}`
+    }
+    return "Chọn thời gian"
   }
 
   const availableEditCategories = editType === "expense" ? expenseCategories : incomeCategories
@@ -739,7 +877,7 @@ export function AdminOwnerView({
           <CardContent>
             <div className="space-y-4">
               <div className="flex justify-between items-center"><span className="text-sm text-gray-600">Mục tiêu:</span><span className="font-semibold text-green-600">{formatCurrency(team.incomeGoal || 0)}</span></div>
-              <div className="flex justify-between items-center"><span className="text-sm text-gray-600">Hiện tại:</span><span className="font-semibold">{formatCurrency(currentTotalIncome)}</span></div>
+              <div className="flex justify-between items-center"><span className="text-sm text-gray-600">Hiện tại:</span><span className="font-semibold">{formatCurrency(unfilteredTotalIncome)}</span></div>
               <div className="space-y-2">
                 <div className="flex justify-between items-center"><span className="text-sm text-gray-600">Tiến độ:</span><span className={`text-sm font-medium text-gray-700`}>{incomeProgress.toFixed(0)}%</span></div>
                 <Progress value={incomeProgress} className="h-3" />
@@ -753,7 +891,7 @@ export function AdminOwnerView({
                     <span className="text-sm font-medium text-green-800">🎉 Chúc mừng! Đã hoàn thành mục tiêu thu nhập</span>
                   </div>
                   <p className="text-xs text-green-600 mt-1">
-                    Vượt mục tiêu: {formatCurrency(currentTotalIncome - (team.incomeGoal || 0), team.currency)}
+                    Vượt mục tiêu: {formatCurrency(unfilteredTotalIncome - (team.incomeGoal || 0), team.currency)}
                   </p>
                 </div>
               ) : incomeProgress >= 80 ? (
@@ -763,11 +901,11 @@ export function AdminOwnerView({
                     <span className="text-sm font-medium text-yellow-800">🚀 Sắp đạt mục tiêu!</span>
                   </div>
                   <p className="text-xs text-yellow-600 mt-1">
-                    Còn thiếu: {formatCurrency(Math.max(0, (team.incomeGoal || 0) - currentTotalIncome), team.currency)}
+                    Còn thiếu: {formatCurrency(Math.max(0, (team.incomeGoal || 0) - unfilteredTotalIncome), team.currency)}
                   </p>
                 </div>
               ) : (
-                <div className="text-sm text-gray-600">Còn thiếu: {formatCurrency(Math.max(0, (team.incomeGoal || 0) - currentTotalIncome))}</div>
+                <div className="text-sm text-gray-600">Còn thiếu: {formatCurrency(Math.max(0, (team.incomeGoal || 0) - unfilteredTotalIncome))}</div>
               )}
             </div>
           </CardContent>
@@ -798,7 +936,7 @@ export function AdminOwnerView({
           <CardContent>
             <div className="space-y-4">
               <div className="flex justify-between items-center"><span className="text-sm text-gray-600">Ngân sách:</span><span className="font-semibold text-red-600">{formatCurrency(team.budget || 0)}</span></div>
-              <div className="flex justify-between items-center"><span className="text-sm text-gray-600">Đã chi:</span><span className="font-semibold">{formatCurrency(currentTotalExpenses)}</span></div>
+              <div className="flex justify-between items-center"><span className="text-sm text-gray-600">Đã chi:</span><span className="font-semibold">{formatCurrency(unfilteredTotalExpenses)}</span></div>
               <div className="space-y-2">
                 <div className="flex justify-between items-center"><span className="text-sm text-gray-600">Sử dụng:</span><span className={`text-sm font-medium text-gray-700`}>{budgetProgress.toFixed(0)}%</span></div>
                 <Progress value={budgetProgress} className="h-3" />
@@ -812,7 +950,7 @@ export function AdminOwnerView({
                     <span className="text-sm font-medium text-red-800">⚠️ Đã vượt ngân sách!</span>
                   </div>
                   <p className="text-xs text-red-600 mt-1">
-                    Vượt quá: {formatCurrency(currentTotalExpenses - (team.budget || 0))}
+                    Vượt quá: {formatCurrency(unfilteredTotalExpenses - (team.budget || 0))}
                   </p>
                 </div>
               ) : budgetProgress >= 90 ? (
@@ -822,7 +960,7 @@ export function AdminOwnerView({
                     <span className="text-sm font-medium text-orange-800">⚠️ Gần hết ngân sách!</span>
                   </div>
                   <p className="text-xs text-orange-600 mt-1">
-                    Còn lại: {formatCurrency(Math.max(0, (team.budget || 0) - currentTotalExpenses))}
+                    Còn lại: {formatCurrency(Math.max(0, (team.budget || 0) - unfilteredTotalExpenses))}
                   </p>
                 </div>
               ) : budgetProgress >= 75 ? (
@@ -832,7 +970,7 @@ export function AdminOwnerView({
                     <span className="text-sm font-medium text-yellow-800">💡 Cần chú ý chi tiêu</span>
                   </div>
                   <p className="text-xs text-yellow-600 mt-1">
-                    Còn lại: {formatCurrency(Math.max(0, (team.budget || 0) - currentTotalExpenses))}
+                    Còn lại: {formatCurrency(Math.max(0, (team.budget || 0) - unfilteredTotalExpenses))}
                   </p>
                 </div>
               ) : (
@@ -847,26 +985,6 @@ export function AdminOwnerView({
       <Card>
         <CardHeader className="flex flex-row items-center justify-between">
           <CardTitle>Báo cáo </CardTitle>
-          <div className="flex items-center gap-2">
-            <Button
-              variant="outline"
-              className="flex items-center gap-2 bg-transparent"
-              onClick={() => setShowDateFilterDialog(true)}
-            >
-              {getDateFilterLabel()}
-              <ChevronDown className="w-4 h-4" />
-            </Button>
-            <DateFilterDialog
-              isOpen={showDateFilterDialog}
-              onOpenChange={setShowDateFilterDialog}
-              onConfirm={(type, value) => {
-                setCurrentDateFilterType(type)
-                setCurrentDateFilterValue(value)
-              }}
-              initialFilterType={currentDateFilterType}
-              initialDate={currentDateFilterValue instanceof Date ? currentDateFilterValue : new Date()}
-            />
-          </div>
         </CardHeader>
         <CardContent className="space-y-6">
             <Card className="border-purple-100">
@@ -929,16 +1047,46 @@ export function AdminOwnerView({
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
               />
-                <Button variant="outline" size="sm" onClick={() => setShowTransactionFilterDialog(true)}>
-                  <Filter className="w-4 h-4 mr-2" />
-                  Lọc
-                </Button>
+                          <Button 
+                            variant="outline" 
+                            size="sm" 
+                            onClick={() => setShowDateFilterDialog(true)}
+                            className="flex items-center gap-2"
+                          >
+                            <Calendar className="w-4 h-4" />
+                            {getDateFilterLabel(currentDateFilterType, currentDateFilterValue)}
+                            <ChevronDown className="w-4 h-4" />
+                          </Button>
+                          
+                          {/* SỬA: Transaction Filter Button với tên khác */}
+                          <Button 
+                            variant="outline" 
+                            size="sm" 
+                            onClick={() => setShowTransactionFilterDialog(true)}
+                            className="flex items-center gap-2"
+                          >
+                            <Filter className="w-4 h-4" />
+                            Bộ lọc
+                          </Button>
+                          
+                          {/* Date Filter Dialog */}
+                          <DateFilterDialog
+                            isOpen={showDateFilterDialog}
+                            onOpenChange={setShowDateFilterDialog}
+                            onConfirm={(type, value) => {
+                              setCurrentDateFilterType(type)
+                              setCurrentDateFilterValue(value)
+                            }}
+                            initialFilterType={currentDateFilterType}
+                            initialDate={currentDateFilterValue instanceof Date ? currentDateFilterValue : new Date()}
+                          />
                 <TransactionFilterDialog
                   isOpen={showTransactionFilterDialog}
                   onOpenChange={setShowTransactionFilterDialog}
                   onApplyFilters={setTransactionFilters}
                   initialFilters={transactionFilters}
                   allTransactions={allTransactions}
+                  team={team}
                 />
               </div>
             </CardHeader>
@@ -963,7 +1111,7 @@ export function AdminOwnerView({
                     >
                       <div className="flex items-center justify-between">
                         <div className="flex items-center gap-3 flex-1">
-                          <div className="text-xl">{getCategoryIcon(transaction.category, transaction.type)}</div>
+                          <div className="text-xl">{getCategoryIcon(transaction.categoryName, transaction.type)}</div>
                           <div>
                             <div className="flex items-center gap-2">
                               <h4 className="font-medium text-sm">{transaction.description}</h4>
@@ -1166,14 +1314,20 @@ export function AdminOwnerView({
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    {availableEditCategories.map((cat) => (
+                  {availableEditCategories.length > 0 ? (
+                    availableEditCategories.map((cat) => (
                       <SelectItem key={cat.name} value={cat.name}>
                         <div className="flex items-center gap-2">
                           <span>{cat.icon}</span>
                           <span>{cat.name}</span>
                         </div>
                       </SelectItem>
-                    ))}
+                    ))
+                  ) : (
+                    <SelectItem value="" disabled>
+                      <span className="text-gray-400">Không có danh mục nào</span>
+                    </SelectItem>
+                  )}
                   </SelectContent>
                 </Select>
               </div>
