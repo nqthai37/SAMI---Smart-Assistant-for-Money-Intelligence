@@ -102,8 +102,8 @@ const setCategories: RequestHandler = async (req, res) => {
   try {
     const teamId = Number(req.params.id);
     const userId = (req as AuthenticatedRequest).user.id;
-    const { name, icon } = req.body as { name: string; icon: string };
-    const result = await TeamService.setFinanceCategories(teamId, userId, { name, icon });
+    const { categories } = req.body as { categories: { name: string; icon: string }[] };
+    const result = await TeamService.setFinanceCategories(teamId, userId, categories);
     return res.status(200).json({ message: 'Categories updated', ...result });
   } catch (err: any) {
     return res.status(err?.statusCode ?? 500).json({ message: err?.message ?? 'Server error' });
@@ -194,7 +194,7 @@ const removeMember: RequestHandler = async (req, res) => {
     }
 
     await TeamService.removeMember(teamId, memberId, userId);
-    return res.status(204).send();
+    return res.status(200).json({ message: 'Thành viên đã được xóa khỏi nhóm.' });
   } catch (error: any) {
     console.error('Error removing member from team:', error);
 
@@ -202,6 +202,32 @@ const removeMember: RequestHandler = async (req, res) => {
     const msg =
       error?.message ??
       (status === 500 ? 'Server error' : 'Unable to remove member');
+    return res.status(status).json({ message: msg });
+  }
+}
+
+const changeMemberRole: RequestHandler = async (req, res) => {
+  try {
+    const teamId = Number(req.params.id);
+    const memberId = Number(req.params.memberId);
+    const userId = (req as AuthenticatedRequest).user.id;
+    const { role } = req.body;
+
+    console.log('Changing member role:', { teamId, memberId, userId, role });
+
+    if (Number.isNaN(teamId) || Number.isNaN(memberId) || !role) {
+      return res.status(400).json({ message: 'Invalid team id, member id, or role' });
+    }
+
+    await TeamService.changeMemberRole(teamId, memberId, userId, role);
+    return res.status(200).json({ message: 'Member role updated successfully' });
+  } catch (error: any) {
+    console.error('Error changing member role:', error);
+
+    const status = error?.statusCode ?? 500;
+    const msg =
+      error?.message ??
+      (status === 500 ? 'Server error' : 'Unable to change member role');
     return res.status(status).json({ message: msg });
   }
 }
@@ -219,4 +245,5 @@ export {
     handleInviteResponse,
     getTeamDetails,
     removeMember,
+    changeMemberRole,
 };

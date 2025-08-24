@@ -51,4 +51,7 @@ router.get('/:teamId/transactions', TransactionController.getTeamTransactions);
 // Xóa thành viên khỏi team
 router.delete('/:id/members/:memberId', TeamController.removeMember);
 
+// Thay đổi vai trò của thành viên trong team
+router.patch('/:id/members/:memberId', TeamController.changeMemberRole);
+
 export default router;

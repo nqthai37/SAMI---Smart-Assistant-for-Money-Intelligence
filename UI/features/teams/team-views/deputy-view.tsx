@@ -40,14 +40,7 @@ export function DeputyView({ team, onModeChange, onUpdateTeam }: DeputyViewProps
   const [isSendingInvite, setIsSendingInvite] = useState(false)
   const [inviteError, setInviteError] = useState<string | null>(null)
   const [selectedCurrency, setSelectedCurrency] = useState("VND")
-  const [categories, setCategories] = useState<CategoryItem[]>([
-    { name: "Ăn uống", icon: "🍽️" },
-    { name: "Di chuyển", icon: "🚗" },
-    { name: "Văn phòng phẩm", icon: "📝" },
-    { name: "Thiết bị", icon: "💻" },
-    { name: "Marketing", icon: "📢" },
-    { name: "Giải trí", icon: "🎮" },
-  ])
+  const [categories, setCategories] = useState(team.categories || [])
   const [newCategoryName, setNewCategoryName] = useState("")
   const [newCategoryIcon, setNewCategoryIcon] = useState("")
   const [newRole, setNewRole] = useState<UserRole>("Member")
@@ -65,23 +58,20 @@ export function DeputyView({ team, onModeChange, onUpdateTeam }: DeputyViewProps
 
   // Role hierarchy: Owner > Admin > Deputy > Member
   const roleHierarchy: UserRole[] = ["Owner", "Admin", "Deputy", "Member"]
+  const currentUserActualRole = team.currentUserRole // Giả sử bạn có thông tin này từ props hoặc context
+  const lowerCaseRoleHierarchy = roleHierarchy.map(role => role.toLowerCase());
 
-  // Check if current user can kick a member based on ACTUAL role (not current mode)
-  const canKickMember = (memberRole: UserRole) => {
-    const currentUserActualRole = team.currentUserRole
-    const currentRoleIndex = roleHierarchy.indexOf(currentUserActualRole)
-    const memberRoleIndex = roleHierarchy.indexOf(memberRole)
-    return currentRoleIndex < memberRoleIndex
-  }
+  // Check if current user can kick and change role of a member based on ACTUAL role (not current mode)
+  const hasPermission = (memberRole: UserRole) => {
+    const currentUserIndex = lowerCaseRoleHierarchy.indexOf(currentUserActualRole.toLowerCase());
+    const memberIndex = lowerCaseRoleHierarchy.indexOf(memberRole.toLowerCase());
 
-  // Check if current user can modify permissions based on ACTUAL role
-  const canModifyPermissions = (memberRole: UserRole) => {
-    const currentUserActualRole = team.currentUserRole
-    const currentRoleIndex = roleHierarchy.indexOf(currentUserActualRole)
-    const memberRoleIndex = roleHierarchy.indexOf(memberRole)
+    // Chỉ kiểm tra khi cả hai role đều tồn tại trong danh sách
+    if (currentUserIndex === -1 || memberIndex === -1) {
+        return false;
+    }
 
-    // Can only modify permissions of members with lower hierarchy
-    return currentRoleIndex < memberRoleIndex
+    return currentUserIndex < memberIndex;
   }
 
   // Invite member via email
@@ -128,7 +118,24 @@ export function DeputyView({ team, onModeChange, onUpdateTeam }: DeputyViewProps
   }
 
   const handleKickMember = async () => {
-    
+    if (!selectedMember) return;
+    if (!token) {
+        toast.error("Phiên đăng nhập không hợp lệ. Vui lòng đăng nhập lại.");
+        return;
+    }
+    try{
+      const response = await api.delete(`/teams/${team.id}/members/${selectedMember.User.id}`);
+      // Cập nhật lại danh sách thành viên trong team sau khi xóa
+      const updatedMembers = teamMembers.filter(member => member.User.id !== selectedMember.User.id);
+      onUpdateTeam({ ...team, members: updatedMembers }); // Cập nhật state ở component cha
+      toast.success("Thành viên đã được xóa khỏi nhóm.");
+    }catch(error:any){
+      console.error("Lỗi khi xóa thành viên:", error);
+      toast.error("Lỗi: " + (error.response?.data?.message || error.message));
+    }finally{
+      setShowKickMemberDialog(false);
+      setSelectedMember(null);
+    }
   }
 
   const handleRenameWorkspace = async () => {
@@ -202,32 +209,57 @@ export function DeputyView({ team, onModeChange, onUpdateTeam }: DeputyViewProps
     setCategories(categories.filter((cat) => cat.name !== categoryToDelete))
   }
 
+  const handleSaveCategories = async () => {
+    try {
+      await api.patch(`/teams/${team.id}/categories`, { categories });
+      toast.success("Danh mục đã được cập nhật!");
+      setShowCategoriesDialog(false);
+    } catch (error: any) {
+      console.error("Lỗi khi cập nhật danh mục:", error);
+      toast.error("Lỗi: " + (error.response?.data?.message || error.message));
+    }
+  }
+
   const handleEditPermission = (member: TeamMember) => {
     setSelectedMemberForEdit(member)
     setNewRole(member.role)
     setShowEditPermissionDialog(true)
   }
 
-  const handleSavePermission = () => {
-    if (selectedMemberForEdit) {
-      // console.log("Changing role of", selectedMemberForEdit.name, "to", newRole)
-      setShowEditPermissionDialog(false)
-      setSelectedMemberForEdit(null)
+  const handleSavePermission = async () => {
+    if(!selectedMemberForEdit || !newRole) return;
+    try{
+      await api.patch(`/teams/${team.id}/members/${selectedMemberForEdit.User.id}`, {role: newRole});
+      const updatedMembers = teamMembers.map(member => {
+        if (member.User.id === selectedMemberForEdit.User.id) {
+          return { ...member, role: newRole.toLowerCase() };
+        }
+        return member;
+      });
+      onUpdateTeam({ ...team, members: updatedMembers }); // Cập nhật state ở component cha
+      toast.success("Quyền của thành viên đã được cập nhật.");
     }
+    catch(error:any){
+      console.error("Lỗi khi cập nhật quyền thành viên:", error);
+      toast.error("Lỗi: " + (error.response?.data?.message || error.message));
+    }
+    finally{
+      setShowEditPermissionDialog(false);
+      setSelectedMemberForEdit(null);
+    } 
   }
 
   // Get available roles that current user can assign
-  const getAvailableRoles = (targetMemberRole: UserRole): UserRole[] => {
-    const currentUserActualRole = team.currentUserRole
-    const currentRoleIndex = roleHierarchy.indexOf(currentUserActualRole)
-
-    // Can assign roles equal to or lower than current user's role
-    return roleHierarchy.slice(currentRoleIndex)
+  const getAvailableRoles = (): UserRole[] => {
+    if (!currentUserActualRole) return [];
+    const currentUserIndex = lowerCaseRoleHierarchy.indexOf(currentUserActualRole.toLowerCase());
+    if (currentUserIndex === -1) return [];
+    return roleHierarchy.slice(currentUserIndex + 1); // Chỉ trả về các vai trò thấp hơn vai trò hiện tại của user
   }
 
   // Sửa hàm check user hiện tại
   const isCurrentUser = (member: TeamMember) => {
-    return user?.id === member.id;
+    return user && member.User.id === user.id;
   };
 
   return (
@@ -237,10 +269,10 @@ export function DeputyView({ team, onModeChange, onUpdateTeam }: DeputyViewProps
         <div className="flex items-center gap-4">
           <div className="flex items-center gap-3">
             <div className={`w-4 h-4 rounded-full ${team.color}`}></div>
-            <h1 className="text-2xl font-bold text-gray-900">{team.name}</h1>
+            <h1 className="text-2xl font-bold text-gray-900">{team.teamName}</h1>
             <Badge variant="secondary">{team.currentUserRole}</Badge>
             <RoleSwitcher
-              teamName={team.name}
+              teamName={team.teamName}
               actualRole={team.currentUserRole}
               currentMode={team.currentUserMode}
               onModeChange={onModeChange}
@@ -304,9 +336,8 @@ export function DeputyView({ team, onModeChange, onUpdateTeam }: DeputyViewProps
                 {(teamMembers || []).map((member) => {
                   const config = roleConfig[member.role.slice(0, 1).toUpperCase() + member.role.slice(1) as UserRole]
                   const Icon = config.icon
-                  const canKick = canKickMember(member.role);
-                  const canModify = canModifyPermissions(member.role)
-                  const isThisMemberTheCurrentUser = isCurrentUser(member); // Dùng hàm đã sửa
+                  const canManageOther = hasPermission(member.role)
+                  const isThisMemberTheCurrentUser = isCurrentUser(member) // Dùng hàm đã sửa
 
                   return (
                     <div key={member.User.id} className="flex items-center justify-between p-4 border rounded-lg">
@@ -336,7 +367,7 @@ export function DeputyView({ team, onModeChange, onUpdateTeam }: DeputyViewProps
                         </div>
                       </div>
                       <div className="flex items-center gap-2">
-                        {!isThisMemberTheCurrentUser && canModify && (
+                        {!isThisMemberTheCurrentUser && canManageOther && (
                           <Button
                             variant="outline"
                             size="sm"
@@ -347,7 +378,7 @@ export function DeputyView({ team, onModeChange, onUpdateTeam }: DeputyViewProps
                             Sửa quyền
                           </Button>
                         )}
-                        {!isThisMemberTheCurrentUser && canKick && (
+                        {!isThisMemberTheCurrentUser && canManageOther && (
                           <Dialog open={showKickMemberDialog} onOpenChange={setShowKickMemberDialog}>
                             <DialogTrigger asChild>
                               <Button
@@ -357,7 +388,7 @@ export function DeputyView({ team, onModeChange, onUpdateTeam }: DeputyViewProps
                                 onClick={() => setSelectedMember(member)}
                               >
                                 <Trash2 className="w-4 h-4 mr-2" />
-                                Kick
+                                Xóa khỏi nhóm
                               </Button>
                             </DialogTrigger>
                             <DialogContent>
@@ -381,11 +412,6 @@ export function DeputyView({ team, onModeChange, onUpdateTeam }: DeputyViewProps
                               </div>
                             </DialogContent>
                           </Dialog>
-                        )}
-                        {!isThisMemberTheCurrentUser && !canKick && !canModify && (
-                          <Badge variant="secondary" className="text-xs">
-                            Không thể quản lý
-                          </Badge>
                         )}
                       </div>
                     </div>
@@ -547,9 +573,9 @@ export function DeputyView({ team, onModeChange, onUpdateTeam }: DeputyViewProps
                             <span className="font-medium">{category.name}</span>
                           </div>
                           <div className="flex gap-2">
-                            <Button variant="outline" size="sm">
+                            {/* <Button variant="outline" size="sm">
                               <Edit className="w-4 h-4" />
-                            </Button>
+                            </Button> */}
                             <Button
                               variant="outline"
                               size="sm"
@@ -564,8 +590,8 @@ export function DeputyView({ team, onModeChange, onUpdateTeam }: DeputyViewProps
                     </div>
 
                     <div className="flex gap-2">
-                      <Button onClick={() => setShowCategoriesDialog(false)} className="flex-1">
-                        Hoàn thành
+                      <Button onClick={handleSaveCategories} className="flex-1">
+                        Lưu
                       </Button>
                     </div>
                   </div>
@@ -573,7 +599,7 @@ export function DeputyView({ team, onModeChange, onUpdateTeam }: DeputyViewProps
               </Dialog>
             </CardHeader>
             <CardContent>
-              <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+              {/* <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
                 {categories.slice(0, 6).map((category, index) => (
                   <div key={index} className="p-3 bg-gray-50 rounded-lg text-center flex flex-col items-center">
                     <span className="text-xl mb-1">{category.icon}</span>
@@ -585,7 +611,15 @@ export function DeputyView({ team, onModeChange, onUpdateTeam }: DeputyViewProps
                     <span className="text-sm text-gray-600">+{categories.length - 6} khác</span>
                   </div>
                 )}
-              </div>
+              </div> */}
+              <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+                    {categories.map((category, index) => (
+                        <div key={index} className="p-3 bg-gray-50 rounded-lg text-center flex flex-col items-center">
+                            <span className="text-xl mb-1">{category.icon}</span>
+                            <span className="text-sm font-medium">{category.name}</span>
+                        </div>
+                    ))}
+                </div>
             </CardContent>
           </Card>
         </TabsContent>
@@ -611,7 +645,7 @@ export function DeputyView({ team, onModeChange, onUpdateTeam }: DeputyViewProps
                 </SelectTrigger>
                 <SelectContent>
                   {selectedMemberForEdit &&
-                    getAvailableRoles(selectedMemberForEdit.role).map((role) => {
+                    getAvailableRoles().map((role) => {
                       const config = roleConfig[role]
                       const Icon = config.icon
                       return (
