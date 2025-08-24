@@ -42,7 +42,12 @@ const deleteTeam: RequestHandler = async (req, res) => {
     }
 
     await TeamService.deleteTeam(teamId, userId);
-    return res.status(204).send();
+
+    return res.status(200).json({ 
+      message: 'Team deleted successfully',
+      teamId: teamId,
+      success: true 
+    });
   } catch (error: any) {
     console.error('Error deleting team:', error);
 

@@ -16,6 +16,7 @@ import {
   Bot,
   Eye,
   EyeOff,
+  Banknote,
 } from "lucide-react"
 import { useState, useMemo } from "react"
 import { Button } from "@/components/ui/button"
@@ -41,9 +42,10 @@ import { DateFilterDialog } from "../../transactions/components/date-filter-dial
 import { TransactionFilterDialog } from "../../transactions/components/transaction-filter-dialog"
 import { Textarea } from "@/components/ui/textarea"
 import { useAuth } from "@/lib/auth"
-import { toast } from "react-hot-toast"
+import { toast } from "sonner"
 // Giả định bạn có một client API đã được cấu hình
 import { api } from "@/lib/api" 
+import { useRouter } from "next/navigation"
 
 type FilterType = "daily" | "weekly" | "monthly" | "annual" | "all-time"
 
@@ -65,7 +67,8 @@ export function AdminOwnerView({
   onDeleteTransaction,
 }: AdminOwnerViewProps) {
   const { user } = useAuth()
-  const isOwner = team.currentUserRole === "Owner"
+  const isOwner = team.currentUserRole === "owner"
+  const router = useRouter()
 
   // States
   const [showDateFilterDialog, setShowDateFilterDialog] = useState(false)
@@ -96,11 +99,15 @@ export function AdminOwnerView({
   const [editType, setEditType] = useState<"income" | "expense">("expense")
   const [editReason, setEditReason] = useState("")
   const [deleteReason, setDeleteReason] = useState("")
-
+  const [searchQuery, setSearchQuery] = useState("")
   // --- UTILS ---
-  const formatCurrency = (amount: number) => {
-    return new Intl.NumberFormat("vi-VN", { style: "currency", currency: "VND" }).format(amount)
-  }
+  const formatCurrency = (amount: number, currencyCode: string = "VND") => {
+    console.log({amount, currencyCode})
+    return new Intl.NumberFormat("vi-VN", { 
+      style: "currency", 
+      currency: currencyCode 
+    }).format(amount);
+  };
 
   const formatShortDate = (dateString: string) => {
     const date = new Date(dateString)
@@ -137,13 +144,25 @@ export function AdminOwnerView({
       filtered = filtered.filter((t) => transactionFilters.creators.includes(t.createdBy))
     }
     if (transactionFilters.categories.length > 0) {
-      filtered = filtered.filter((t) => transactionFilters.categories.includes(t.category))
+      filtered = filtered.filter((t) => transactionFilters.categories.includes(t.categoryName))
     }
     if (transactionFilters.type !== "all") {
       filtered = filtered.filter((t) => t.type === transactionFilters.type)
     }
+    if (searchQuery.trim()) {
+      const query = searchQuery.toLowerCase().trim()
+      filtered = filtered.filter((t) => {
+        return (
+          t.description?.toLowerCase().includes(query) ||
+          t.categoryName?.toLowerCase().includes(query) ||
+          t.createdBy?.toLowerCase().includes(query) ||
+          t.amount.toString().includes(query)
+      )
+    })
+    }
+
     return filtered
-  }, [allTransactions, currentDateFilterType, currentDateFilterValue, transactionFilters])
+  }, [allTransactions, currentDateFilterType, currentDateFilterValue, transactionFilters, searchQuery])
 
   const requestedTransactions = filteredTransactions.filter((t) => t.status !== "approved")
 
@@ -209,7 +228,8 @@ export function AdminOwnerView({
     transactions
       .filter(t => t.type === type)
       .forEach(t => {
-        categoryMap.set(t.category, (categoryMap.get(t.category) || 0) + Number(t.amount))
+        const categoryKey = t.categoryName || 'Không phân loại';
+      categoryMap.set(categoryKey, (categoryMap.get(categoryKey) || 0) + Number(t.amount))
       })
     
     const colors = ["#10B981", "#3B82F6", "#8B5CF6", "#EF4444", "#F59E0B", "#06B6D4"]
@@ -348,10 +368,17 @@ export function AdminOwnerView({
 
   const handleConfirmDeleteTeam = async () => {
     try {
+      const tmpName = team.teamName;
       await api.delete(`/teams/${team.id}`);
-      toast.success(`Nhóm "${team.teamName}" đã được xóa.`);
-      setShowDeleteTeamConfirmDialog(false)
-      // Chuyển hướng người dùng, ví dụ: window.location.href = '/';
+      
+      setShowDeleteTeamConfirmDialog(false);
+      toast.success(`Nhóm "${tmpName}" đã được xóa.`, {
+        duration: 2000,
+      });
+      setTimeout(() => {
+        window.location.replace('/'); // Replace history entry
+      }, 2000);
+      
     } catch (error: any) {
       toast.error("Lỗi: " + (error.response?.data?.message || error.message));
     }
@@ -522,117 +549,124 @@ export function AdminOwnerView({
   return (
     <div className="p-6 max-w-7xl mx-auto">
       {/* Header */}
-      <div className="flex items-center justify-between mb-6 flex-wrap gap-y-4">
-        <div className="flex items-center gap-4 flex-1 min-w-0">
-          <div className="flex items-center gap-3 flex-1 min-w-0">
-             {/* team.color đã bị xóa vì không có trong schema */}
-            <div className={`w-4 h-4 rounded-full bg-blue-500 flex-shrink-0`}></div>
-            <h1 className="text-2xl font-bold text-gray-900 truncate flex-1">{team.teamName}</h1>
-            <Badge variant="secondary" className="flex-shrink-0">{team.currentUserRole}</Badge>
-            <div className="flex-shrink-0">
-              <RoleSwitcher
-                teamName={team.teamName}
-                actualRole={team.currentUserRole}
-                currentMode={team.currentUserMode || team.currentUserRole}
-                onModeChange={onModeChange}
-              />
-            </div>
-          </div>
+      <div className="mb-6 space-y-4">
+        {/* SỬA: Dòng 1 - Chỉ team info */}
+        <div className="flex items-center gap-3">
+          <div className={`w-4 h-4 rounded-full bg-blue-500 flex-shrink-0`}></div>
+          <h1 className="text-2xl font-bold text-gray-900">{team.teamName}</h1>
+          <Badge variant="secondary" className="flex-shrink-0">{team.currentUserRole}</Badge>
         </div>
-        <div className="flex items-center gap-3 flex-wrap justify-end">
-          <Button
-            size="sm"
-            variant="outline"
-            className={team.allowMemberViewReport ? "bg-green-100 text-green-700" : "bg-red-100 text-red-700"}
-            onClick={handleToggleMemberReportsView}
-          >
-            {team.allowMemberViewReport ? <Eye className="w-4 h-4 mr-2" /> : <EyeOff className="w-4 h-4 mr-2" />}
-            {team.allowMemberViewReport ? "Cho phép xem báo cáo" : "Không cho phép xem"}
-          </Button>
-          <Dialog open={showAIChatDialog} onOpenChange={setShowAIChatDialog}>
-            <DialogTrigger asChild>
-              <Button size="sm" className="bg-blue-600 hover:bg-blue-700">
-                <BarChart3 className="w-4 h-4 mr-2" />
-                Tạo báo cáo bằng AI
-              </Button>
-            </DialogTrigger>
-            <DialogContent className="max-w-md p-6 rounded-2xl bg-white shadow-lg">
-              <DialogHeader>
-                <DialogTitle>Chat với AI</DialogTitle>
-              </DialogHeader>
-              <div className="flex flex-col h-[400px] border rounded-lg overflow-hidden">
-                <div className="flex-1 p-4 space-y-4 overflow-y-auto bg-gray-50">
-                  {aiChatMessages.length === 0 ? (
-                    <div className="text-center text-gray-500 mt-10">
-                      <Bot className="w-10 h-10 mx-auto mb-2 text-gray-400" />
-                      <p>Chào bạn! Tôi là AI trợ lý của bạn. Hãy hỏi tôi bất cứ điều gì về chi tiêu của nhóm.</p>
-                    </div>
-                  ) : (
-                    aiChatMessages.map((msg, index) => (
-                      <div
-                        key={index}
-                        className={`flex items-start gap-3 ${msg.sender === "user" ? "justify-end" : ""}`}
-                      >
-                        {msg.sender === "ai" && (
-                          <div className="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center flex-shrink-0">
-                            <Bot className="w-4 h-4 text-blue-600" />
-                          </div>
-                        )}
-                        <div
-                          className={`p-3 rounded-lg max-w-[80%] ${
-                            msg.sender === "user"
-                              ? "bg-blue-500 text-white rounded-br-none"
-                              : "bg-gray-200 text-gray-800 rounded-bl-none"
-                          }`}
-                        >
-                          <p className="text-sm">{msg.text}</p>
-                          <span className="text-xs opacity-75 mt-1 block text-right">{msg.timestamp}</span>
-                        </div>
-                        {msg.sender === "user" && (
-                          <div className="w-8 h-8 rounded-full bg-gray-300 flex items-center justify-center flex-shrink-0">
-                            <span className="text-sm font-medium text-gray-700">Bạn</span>
-                          </div>
-                        )}
-                      </div>
-                    ))
-                  )}
-                </div>
-                <form onSubmit={handleAIChatSubmit} className="p-4 border-t bg-white flex gap-2">
-                  <Input
-                    placeholder="Nhập tin nhắn của bạn..."
-                    value={aiChatInput}
-                    onChange={(e) => setAiChatInput(e.target.value)}
-                    className="flex-1"
-                  />
-                  <Button type="submit" size="icon">
-                    <Send className="w-4 h-4" />
-                  </Button>
-                </form>
-              </div>
-              <div className="text-center text-sm text-gray-500 mt-2">Tính năng này đang được phát triển.</div>
-            </DialogContent>
-          </Dialog>
-          {isOwner && (
-            <Dialog open={showDeleteTeamConfirmDialog} onOpenChange={setShowDeleteTeamConfirmDialog}>
+        
+        {/* SỬA: Dòng 2 - RoleSwitcher + Action buttons cùng dòng */}
+        <div className="flex items-center justify-between gap-3 flex-wrap">
+          {/* RoleSwitcher bên trái */}
+          <div className="flex-shrink-0">
+            <RoleSwitcher
+              teamName={team.teamName}
+              actualRole={team.currentUserRole}
+              currentMode={team.currentUserMode || team.currentUserRole}
+              onModeChange={onModeChange}
+            />
+          </div>
+          
+          {/* Action buttons bên phải */}
+          <div className="flex items-center gap-3 flex-wrap">
+            <Button
+              size="sm"
+              variant="outline"
+              className={team.allowMemberViewReport ? "bg-green-100 text-green-700" : "bg-red-100 text-red-700"}
+              onClick={handleToggleMemberReportsView}
+            >
+              {team.allowMemberViewReport ? <Eye className="w-4 h-4 mr-2" /> : <EyeOff className="w-4 h-4 mr-2" />}
+              {team.allowMemberViewReport ? "Cho phép xem báo cáo" : "Không cho phép xem"}
+            </Button>
+            
+            <Dialog open={showAIChatDialog} onOpenChange={setShowAIChatDialog}>
               <DialogTrigger asChild>
-                <Button variant="outline" size="sm" className="text-red-600 hover:text-red-700 bg-transparent">
-                  <Trash2 className="w-4 h-4 mr-2" /> Xóa nhóm
+                <Button size="sm" className="bg-blue-600 hover:bg-blue-700">
+                  <BarChart3 className="w-4 h-4 mr-2" />
+                  Tạo báo cáo bằng AI
                 </Button>
               </DialogTrigger>
-              <DialogContent>
+              <DialogContent className="max-w-md p-6 rounded-2xl bg-white shadow-lg">
                 <DialogHeader>
-                  <DialogTitle>Xác nhận xóa nhóm</DialogTitle>
-                  <DialogDescription>
-                    Bạn có chắc muốn xóa nhóm "{team.teamName}"? Hành động này không thể hoàn tác.
-                  </DialogDescription>
+                  <DialogTitle>Chat với AI</DialogTitle>
                 </DialogHeader>
-                <div className="flex gap-2 pt-4">
-                  <Button variant="destructive" onClick={handleConfirmDeleteTeam} className="flex-1">Xác nhận</Button>
-                  <Button variant="outline" onClick={() => setShowDeleteTeamConfirmDialog(false)} className="flex-1">Hủy</Button>
+                <div className="flex flex-col h-[400px] border rounded-lg overflow-hidden">
+                  <div className="flex-1 p-4 space-y-4 overflow-y-auto bg-gray-50">
+                    {aiChatMessages.length === 0 ? (
+                      <div className="text-center text-gray-500 mt-10">
+                        <Bot className="w-10 h-10 mx-auto mb-2 text-gray-400" />
+                        <p>Chào bạn! Tôi là AI trợ lý của bạn. Hãy hỏi tôi bất cứ điều gì về chi tiêu của nhóm.</p>
+                      </div>
+                    ) : (
+                      aiChatMessages.map((msg, index) => (
+                        <div
+                          key={index}
+                          className={`flex items-start gap-3 ${msg.sender === "user" ? "justify-end" : ""}`}
+                        >
+                          {msg.sender === "ai" && (
+                            <div className="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center flex-shrink-0">
+                              <Bot className="w-4 h-4 text-blue-600" />
+                            </div>
+                          )}
+                          <div
+                            className={`p-3 rounded-lg max-w-[80%] ${
+                              msg.sender === "user"
+                                ? "bg-blue-500 text-white rounded-br-none"
+                                : "bg-gray-200 text-gray-800 rounded-bl-none"
+                            }`}
+                          >
+                            <p className="text-sm">{msg.text}</p>
+                            <span className="text-xs opacity-75 mt-1 block text-right">{msg.timestamp}</span>
+                          </div>
+                          {msg.sender === "user" && (
+                            <div className="w-8 h-8 rounded-full bg-gray-300 flex items-center justify-center flex-shrink-0">
+                              <span className="text-sm font-medium text-gray-700">Bạn</span>
+                            </div>
+                          )}
+                        </div>
+                      ))
+                    )}
+                  </div>
+                  <form onSubmit={handleAIChatSubmit} className="p-4 border-t bg-white flex gap-2">
+                    <Input
+                      placeholder="Nhập tin nhắn của bạn..."
+                      value={aiChatInput}
+                      onChange={(e) => setAiChatInput(e.target.value)}
+                      className="flex-1"
+                    />
+                    <Button type="submit" size="icon">
+                      <Send className="w-4 h-4" />
+                    </Button>
+                  </form>
                 </div>
+                <div className="text-center text-sm text-gray-500 mt-2">Tính năng này đang được phát triển.</div>
               </DialogContent>
             </Dialog>
-          )}
+            
+            {isOwner && (
+              <Dialog open={showDeleteTeamConfirmDialog} onOpenChange={setShowDeleteTeamConfirmDialog}>
+                <DialogTrigger asChild>
+                  <Button variant="outline" size="sm" className="text-red-600 hover:text-red-700 bg-transparent">
+                    <Trash2 className="w-4 h-4 mr-2" /> Xóa nhóm
+                  </Button>
+                </DialogTrigger>
+                <DialogContent>
+                  <DialogHeader>
+                    <DialogTitle>Xác nhận xóa nhóm</DialogTitle>
+                    <DialogDescription>
+                      Bạn có chắc muốn xóa nhóm "{team.teamName}"? Hành động này không thể hoàn tác.
+                    </DialogDescription>
+                  </DialogHeader>
+                  <div className="flex gap-2 pt-4">
+                    <Button variant="destructive" onClick={handleConfirmDeleteTeam} className="flex-1">Xác nhận</Button>
+                    <Button variant="outline" onClick={() => setShowDeleteTeamConfirmDialog(false)} className="flex-1">Hủy</Button>
+                  </div>
+                </DialogContent>
+              </Dialog>
+            )}
+          </div>
         </div>
       </div>
 
@@ -643,10 +677,10 @@ export function AdminOwnerView({
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm font-medium text-gray-600">Số dư hiện tại</p>
-                <p className={`text-2xl font-bold ${currentBalance >= 0 ? "text-green-600" : "text-red-600"}`}>{formatCurrency(currentBalance)}</p>
+                <p className={`text-2xl font-bold ${currentBalance >= 0 ? "text-green-600" : "text-red-600"}`}>{formatCurrency(currentBalance, team.currency)}</p>
                 <p className="text-xs text-gray-600 mt-1">Tổng tích lũy</p>
               </div>
-              <DollarSign className={`w-8 h-8 ${currentBalance >= 0 ? "text-green-600" : "text-red-600"}`} />
+              <Banknote className={`w-8 h-8 ${currentBalance >= 0 ? "text-green-600" : "text-red-600"}`} />
             </div>
           </CardContent>
         </Card>
@@ -655,7 +689,7 @@ export function AdminOwnerView({
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm font-medium text-gray-600">Doanh thu tháng này</p>
-                <p className="text-2xl font-bold text-blue-600">{formatCurrency(currentMonthIncome)}</p>
+                <p className="text-2xl font-bold text-blue-600">{formatCurrency(currentMonthIncome, team.currency)}</p>
                 <p className={`text-xs mt-1 ${monthlyGrowth >= 0 ? 'text-green-600' : 'text-red-600'}`}>
                   {monthlyGrowth >= 0 ? '+' : ''}{monthlyGrowth.toFixed(1)}% so với tháng trước
                 </p>
@@ -710,10 +744,35 @@ export function AdminOwnerView({
                 <div className="flex justify-between items-center"><span className="text-sm text-gray-600">Tiến độ:</span><span className={`text-sm font-medium text-gray-700`}>{incomeProgress.toFixed(0)}%</span></div>
                 <Progress value={incomeProgress} className="h-3" />
               </div>
-              <div className="text-sm text-gray-600">Còn thiếu: {formatCurrency(Math.max(0, (team.incomeGoal || 0) - currentTotalIncome))}</div>
+              
+              {/* SỬA: Thêm thông báo khi đạt mục tiêu */}
+              {incomeProgress >= 100 ? (
+                <div className="bg-green-50 border border-green-200 rounded-lg p-3">
+                  <div className="flex items-center gap-2">
+                    <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
+                    <span className="text-sm font-medium text-green-800">🎉 Chúc mừng! Đã hoàn thành mục tiêu thu nhập</span>
+                  </div>
+                  <p className="text-xs text-green-600 mt-1">
+                    Vượt mục tiêu: {formatCurrency(currentTotalIncome - (team.incomeGoal || 0), team.currency)}
+                  </p>
+                </div>
+              ) : incomeProgress >= 80 ? (
+                <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3">
+                  <div className="flex items-center gap-2">
+                    <div className="w-2 h-2 bg-yellow-500 rounded-full animate-pulse"></div>
+                    <span className="text-sm font-medium text-yellow-800">🚀 Sắp đạt mục tiêu!</span>
+                  </div>
+                  <p className="text-xs text-yellow-600 mt-1">
+                    Còn thiếu: {formatCurrency(Math.max(0, (team.incomeGoal || 0) - currentTotalIncome), team.currency)}
+                  </p>
+                </div>
+              ) : (
+                <div className="text-sm text-gray-600">Còn thiếu: {formatCurrency(Math.max(0, (team.incomeGoal || 0) - currentTotalIncome))}</div>
+              )}
             </div>
           </CardContent>
         </Card>
+        
         <Card className="border-red-200">
           <CardHeader className="flex flex-row items-center justify-between">
             <CardTitle className="text-red-700 flex items-center gap-2"><Calendar className="w-5 h-5" /> Ngân sách chi tiêu</CardTitle>
@@ -744,7 +803,41 @@ export function AdminOwnerView({
                 <div className="flex justify-between items-center"><span className="text-sm text-gray-600">Sử dụng:</span><span className={`text-sm font-medium text-gray-700`}>{budgetProgress.toFixed(0)}%</span></div>
                 <Progress value={budgetProgress} className="h-3" />
               </div>
-              <div className="text-sm text-gray-600">Còn lại: {formatCurrency(Math.max(0, (team.budget || 0) - currentTotalExpenses))}</div>
+              
+              {/* SỬA: Thêm cảnh báo ngân sách */}
+              {budgetProgress >= 100 ? (
+                <div className="bg-red-50 border border-red-200 rounded-lg p-3">
+                  <div className="flex items-center gap-2">
+                    <AlertTriangle className="w-4 h-4 text-red-500" />
+                    <span className="text-sm font-medium text-red-800">⚠️ Đã vượt ngân sách!</span>
+                  </div>
+                  <p className="text-xs text-red-600 mt-1">
+                    Vượt quá: {formatCurrency(currentTotalExpenses - (team.budget || 0))}
+                  </p>
+                </div>
+              ) : budgetProgress >= 90 ? (
+                <div className="bg-orange-50 border border-orange-200 rounded-lg p-3">
+                  <div className="flex items-center gap-2">
+                    <AlertTriangle className="w-4 h-4 text-orange-500" />
+                    <span className="text-sm font-medium text-orange-800">⚠️ Gần hết ngân sách!</span>
+                  </div>
+                  <p className="text-xs text-orange-600 mt-1">
+                    Còn lại: {formatCurrency(Math.max(0, (team.budget || 0) - currentTotalExpenses))}
+                  </p>
+                </div>
+              ) : budgetProgress >= 75 ? (
+                <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3">
+                  <div className="flex items-center gap-2">
+                    <div className="w-2 h-2 bg-yellow-500 rounded-full"></div>
+                    <span className="text-sm font-medium text-yellow-800">💡 Cần chú ý chi tiêu</span>
+                  </div>
+                  <p className="text-xs text-yellow-600 mt-1">
+                    Còn lại: {formatCurrency(Math.max(0, (team.budget || 0) - currentTotalExpenses))}
+                  </p>
+                </div>
+              ) : (
+                <div className="text-sm text-gray-600">Còn lại: {formatCurrency(Math.max(0, (team.budget || 0) - currentTotalExpenses))}</div>
+              )}
             </div>
           </CardContent>
         </Card>
@@ -753,7 +846,7 @@ export function AdminOwnerView({
       {/* Reports and Transactions Section */}
       <Card>
         <CardHeader className="flex flex-row items-center justify-between">
-          <CardTitle>Báo cáo & Lịch sử giao dịch</CardTitle>
+          <CardTitle>Báo cáo </CardTitle>
           <div className="flex items-center gap-2">
             <Button
               variant="outline"
@@ -777,7 +870,7 @@ export function AdminOwnerView({
         </CardHeader>
         <CardContent className="space-y-6">
             <Card className="border-purple-100">
-                <CardHeader><CardTitle className="text-purple-800">Biểu đồ thu chi 12 tháng</CardTitle></CardHeader>
+                <CardHeader><CardTitle className="text-purple-800">Biểu đồ thu chi 12 tháng qua</CardTitle></CardHeader>
                 <CardContent>{createLineChart()}</CardContent>
             </Card>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
@@ -830,7 +923,12 @@ export function AdminOwnerView({
             <CardHeader className="flex flex-row items-center justify-between">
               <CardTitle>Lịch sử giao dịch</CardTitle>
               <div className="flex items-center gap-2">
-                <Input placeholder="Tìm kiếm..." className="w-60" />
+              <Input 
+                placeholder="Tìm kiếm giao dịch..." 
+                className="w-60" 
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+              />
                 <Button variant="outline" size="sm" onClick={() => setShowTransactionFilterDialog(true)}>
                   <Filter className="w-4 h-4 mr-2" />
                   Lọc
@@ -878,7 +976,7 @@ export function AdminOwnerView({
                               )}
                             </div>
                             <p className="text-xs text-gray-600">
-                              {transaction.category} • {shortenName(transaction.createdBy)} •{" "}
+                              {transaction.categoryName} • {shortenName(transaction.createdBy)} •{" "}
                               {formatShortDate(transaction.createdAt)}
                             </p>
                           </div>
