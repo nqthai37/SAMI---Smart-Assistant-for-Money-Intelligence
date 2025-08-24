@@ -43,6 +43,7 @@ export interface Team {
   updatedAt: string;
   description?: string;
   color?: string;
+  allowMemberViewReport: boolean;
   
   // SỬA Ở ĐÂY: Thêm dấu '?' để các trường này là optional
   // Điều này sẽ giúp danh sách team hiển thị lại ngay lập tức
