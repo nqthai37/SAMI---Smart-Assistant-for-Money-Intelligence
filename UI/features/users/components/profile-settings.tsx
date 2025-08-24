@@ -8,7 +8,8 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
-import { Calendar } from "@/components/ui/calendar"
+import { DateInput } from "@/components/ui/input-date";
+// import { Calendar } from "@/components/ui/calendar"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { CalendarIcon, Pencil } from "lucide-react"
 import { useAuth } from "@/lib/auth"
@@ -67,7 +68,13 @@ export function ProfileSettings() {
       // Chỉ gửi những trường mà backend chấp nhận
       const payload = {
         ...formData,
-        dateOfBirth: dateOfBirth ? dateOfBirth.toISOString() : undefined,
+        dateOfBirth: dateOfBirth
+          ? new Date(Date.UTC(
+              dateOfBirth.getFullYear(),
+              dateOfBirth.getMonth(),
+              dateOfBirth.getDate()
+            )).toISOString()
+          : undefined,
       };
 
       const success = await updateUser(payload)
@@ -131,19 +138,12 @@ export function ProfileSettings() {
 
         <div>
           <Label className="mb-2 block">Ngày sinh</Label>
-          <Popover open={isCalendarOpen} onOpenChange={setIsCalendarOpen}>
-            <PopoverTrigger asChild>
-              <Button variant="outline" className={cn("w-full justify-start text-left font-normal", !dateOfBirth && "text-muted-foreground")} disabled={isLoading}>
-                <CalendarIcon className="mr-2 h-4 w-4" />
-                {dateOfBirth ? format(dateOfBirth, "dd/MM/yyyy") : "Chọn ngày sinh"}
-              </Button>
-            </PopoverTrigger>
-            <PopoverContent className="w-auto p-0" align="start">
-              <Calendar mode="single" selected={dateOfBirth} onSelect={(d) => { setDateOfBirth(d); setIsCalendarOpen(false); }} initialFocus />
-            </PopoverContent>
-          </Popover>
+          <DateInput
+            value={dateOfBirth}
+            onChange={(d) => setDateOfBirth(d)}
+            disabled={isLoading}
+          />
         </div>
-
         <div>
           <Label className="mb-2 block">Giới tính</Label>
           <RadioGroup value={formData.gender} onValueChange={(v: any) => setFormData(p => ({...p, gender: v}))} className="flex gap-6" disabled={isLoading}>
