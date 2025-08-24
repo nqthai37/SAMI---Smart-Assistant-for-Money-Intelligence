@@ -24,6 +24,7 @@ interface TransactionFilterDialogProps {
   }
   allTransactions: Transaction[]
   team?: TeamDetails
+  showCreatorFilter?: boolean 
 }
 
 export function TransactionFilterDialog({
@@ -33,6 +34,7 @@ export function TransactionFilterDialog({
   initialFilters,
   allTransactions,
   team,
+  showCreatorFilter = true, // Thêm prop để kiểm soát hiển thị
 }: TransactionFilterDialogProps) {
   const [selectedCreators, setSelectedCreators] = useState<string[]>(initialFilters.creators)
   const [selectedCategories, setSelectedCategories] = useState<string[]>(initialFilters.categories)
@@ -84,11 +86,19 @@ export function TransactionFilterDialog({
   }
 
   const handleApply = () => {
-    onApplyFilters({
-      creators: selectedCreators,
-      categories: selectedCategories,
-      type: selectedType,
-    })
+    if (showCreatorFilter) {
+      onApplyFilters({
+        creators: selectedCreators,
+        categories: selectedCategories,
+        type: selectedType,
+      })
+    } else {
+      onApplyFilters({
+        // không có creators
+        categories: selectedCategories,
+        type: selectedType,
+      })
+    }
     onOpenChange(false)
   }
 
@@ -104,23 +114,25 @@ export function TransactionFilterDialog({
         </DialogHeader>
         <div className="space-y-6">
           {/* Filter by Creator */}
-          <div>
-            <Label className="text-sm font-medium text-gray-700 mb-2 block">Người nhập giao dịch</Label>
-            <div className="grid grid-cols-2 gap-2 max-h-40 overflow-y-auto pr-2">
-              {uniqueCreators.map((creator) => (
-                <div key={creator} className="flex items-center space-x-2">
-                  <Checkbox
-                    id={`creator-${creator}`}
-                    checked={selectedCreators.includes(creator)}
-                    onCheckedChange={(checked) => handleCreatorChange(creator, checked as boolean)}
-                  />
-                  <Label htmlFor={`creator-${creator}`} className="text-sm font-normal">
-                    {creator}
-                  </Label>
-                </div>
-              ))}
+          {showCreatorFilter && (
+            <div>
+              <Label className="text-sm font-medium text-gray-700 mb-2 block">Người nhập giao dịch</Label>
+              <div className="grid grid-cols-2 gap-2 max-h-40 overflow-y-auto pr-2">
+                {uniqueCreators.map((creator) => (
+                  <div key={creator} className="flex items-center space-x-2">
+                    <Checkbox
+                      id={`creator-${creator}`}
+                      checked={selectedCreators.includes(creator)}
+                      onCheckedChange={(checked) => handleCreatorChange(creator, checked as boolean)}
+                    />
+                    <Label htmlFor={`creator-${creator}`} className="text-sm font-normal">
+                      {creator}
+                    </Label>
+                  </div>
+                ))}
+              </div>
             </div>
-          </div>
+          )}
 
           {/* Filter by Category */}
           <div>

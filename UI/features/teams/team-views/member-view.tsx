@@ -91,6 +91,11 @@ export function MemberView({
     categories: [] as string[],
     type: "all" as "all" | "income" | "expense",
   })
+  const [showMyTransactionFilterDialog, setShowMyTransactionFilterDialog] = useState(false)
+  const [myTransactionFilters, setMyTransactionFilters] = useState({
+    categories: [] as string[],
+    type: "all" as "all" | "income" | "expense",
+  })
   const [transactionSearchTerm, setTransactionSearchTerm] = useState("") // New state for transaction search
   const [myTransactionSearchTerm, setMyTransactionSearchTerm] = useState("") // New state for personal transaction search
 
@@ -202,9 +207,9 @@ const formatCurrency = (amount: number, currencyCode: string = "VND") => {
     filtered = applyDateFilter(filtered, currentDateFilterType, currentDateFilterValue)
 
     // Apply transaction filters
-    if (transactionFilters.creators.length > 0) {
-      filtered = filtered.filter((t) => transactionFilters.creators.includes(t.createdBy))
-    }
+    // if (transactionFilters.creators.length > 0) {
+    //   filtered = filtered.filter((t) => transactionFilters.creators.includes(t.createdBy))
+    // }
     if (transactionFilters.categories.length > 0) {
       filtered = filtered.filter((t) => transactionFilters.categories.includes(t.categoryName))
     }
@@ -229,39 +234,32 @@ const formatCurrency = (amount: number, currencyCode: string = "VND") => {
   // Dòng 185: Sửa lại logic filter
 const myTransactions = useMemo(() => {
   if (!user) return [];
-  
-  console.log('=== DEBUG PERSONAL TRANSACTIONS ===');
-  console.log('Current user:', user);
-  console.log('All transactions:', allTransactions);
-  
-  // SỬA: Thử nhiều cách match để đảm bảo tìm được giao dịch
-  let personalFiltered = allTransactions.filter((t) => {
-    const match =  t.userId === user.id;
     
-    if (match) {
-      console.log('Found matching transaction:', t);
+    let personalFiltered = allTransactions.filter((t) => t.userId === user.id);
+    
+    // Apply personal date filter
+    personalFiltered = applyDateFilter(personalFiltered, personalDateFilterType, personalDateFilterValue);
+
+    // Apply category and type filters
+    if (myTransactionFilters.categories.length > 0) {
+      personalFiltered = personalFiltered.filter((t) => myTransactionFilters.categories.includes(t.categoryName));
     }
-    return match;
-  });
-  
-  console.log('Personal filtered transactions:', personalFiltered);
-  
-  
-  // Apply personal date filter
-  personalFiltered = applyDateFilter(personalFiltered, personalDateFilterType, personalDateFilterValue);
+    if (myTransactionFilters.type !== "all") {
+      personalFiltered = personalFiltered.filter((t) => t.type === myTransactionFilters.type);
+    }
 
-  // Apply personal transaction search term
-  if (myTransactionSearchTerm) {
-    const lowerCaseSearchTerm = myTransactionSearchTerm.toLowerCase();
-    personalFiltered = personalFiltered.filter(
-      (t) =>
-        t.description ? t.description.toLowerCase().includes(lowerCaseSearchTerm) : false ||
-        t.categoryName ? t.categoryName.toLowerCase().includes(lowerCaseSearchTerm) : false,
-    );
-  }
+    // Apply personal transaction search term
+    if (myTransactionSearchTerm) {
+      const lowerCaseSearchTerm = myTransactionSearchTerm.toLowerCase();
+      personalFiltered = personalFiltered.filter(
+        (t) =>
+          (t.description ? t.description.toLowerCase().includes(lowerCaseSearchTerm) : false) ||
+          (t.categoryName ? t.categoryName.toLowerCase().includes(lowerCaseSearchTerm) : false),
+      );
+    }
 
-  return personalFiltered;
-}, [allTransactions, personalDateFilterType, personalDateFilterValue, myTransactionSearchTerm, user]);
+    return personalFiltered;
+  }, [allTransactions, personalDateFilterType, personalDateFilterValue, myTransactionSearchTerm, user, myTransactionFilters]);
   // SỬA: Bỏ filter userId và teamId vì không cần thiết
 const myPendingRequests = []; // Tạm thời để empty vì không có status field
   // Calculate personal financial data
@@ -1078,47 +1076,62 @@ const createLineChart = () => {
 
       {/* My Transactions with Requests */}
       <Card className="mb-6">
-        <CardHeader className="flex flex-row items-center justify-between">
-          <CardTitle>Giao dịch của tôi</CardTitle>
-          <div className="flex items-center gap-2">
-            <div className="relative">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
-              <Input
-                placeholder="Tìm kiếm..."
-                className="w-40 pl-10"
-                value={myTransactionSearchTerm || ""}
-                onChange={(e) => setMyTransactionSearchTerm(e.target.value)}
-              />
-            </div>
-            {/* SỬA: Personal Date Filter với tên mới */}
-            <Button 
-              variant="outline" 
-              size="sm" 
-              onClick={() => setShowPersonalDateFilterDialog(true)}
-              className="flex items-center gap-2"
-            >
-              <Calendar className="w-4 h-4" />
-              {getDateFilterLabel(personalDateFilterType, personalDateFilterValue)}
-              <ChevronDown className="w-4 h-4" />
-            </Button>
-            
-            {/* SỬA: Other Filter Button với tên khác */}
-            <Button variant="outline" size="sm">
-              <Filter className="w-4 h-4 mr-2" />
-              Bộ lọc
-            </Button>
+      <CardHeader className="flex flex-row items-center justify-between">
+        <CardTitle>Giao dịch của tôi</CardTitle>
+        <div className="flex items-center gap-2">
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
+            <Input
+              placeholder="Tìm kiếm..."
+              className="w-40 pl-10"
+              value={myTransactionSearchTerm || ""}
+              onChange={(e) => setMyTransactionSearchTerm(e.target.value)}
+            />
           </div>
-          <DateFilterDialog
-            isOpen={showPersonalDateFilterDialog}
-            onOpenChange={setShowPersonalDateFilterDialog}
-            onConfirm={(type, value) => {
-              setPersonalDateFilterType(type)
-              setPersonalDateFilterValue(value)
-            }}
-            initialFilterType={personalDateFilterType}
-            initialDate={personalDateFilterValue instanceof Date ? personalDateFilterValue : new Date()}
-          />
-        </CardHeader>
+          <Button 
+            variant="outline" 
+            size="sm" 
+            onClick={() => setShowPersonalDateFilterDialog(true)}
+            className="flex items-center gap-2"
+          >
+            <Calendar className="w-4 h-4" />
+            {getDateFilterLabel(personalDateFilterType, personalDateFilterValue)}
+            <ChevronDown className="w-4 h-4" />
+          </Button>
+          
+          {/* THIS IS THE NEW BUTTON */}
+          <Button 
+            variant="outline" 
+            size="sm" 
+            onClick={() => setShowMyTransactionFilterDialog(true)}
+            className="flex items-center gap-2"
+          >
+            <Filter className="w-4 h-4" />
+            Bộ lọc
+          </Button>
+        </div>
+        <DateFilterDialog
+          isOpen={showPersonalDateFilterDialog}
+          onOpenChange={setShowPersonalDateFilterDialog}
+          onConfirm={(type, value) => {
+            setPersonalDateFilterType(type)
+            setPersonalDateFilterValue(value)
+          }}
+          initialFilterType={personalDateFilterType}
+          initialDate={personalDateFilterValue instanceof Date ? personalDateFilterValue : new Date()}
+        />
+        
+        {/* THIS IS THE NEW DIALOG COMPONENT */}
+        <TransactionFilterDialog
+          isOpen={showMyTransactionFilterDialog}
+          onOpenChange={setShowMyTransactionFilterDialog}
+          onApplyFilters={setMyTransactionFilters}
+          initialFilters={myTransactionFilters}
+          allTransactions={allTransactions.filter(t => t.userId === user?.id)} // Only pass personal transactions to filter dialog
+          team={team}
+          showCreatorFilter={false}
+        />
+      </CardHeader>
         <CardContent>
           <Tabs defaultValue="all" className="w-full">
             <TabsList className="grid w-full grid-cols-1">
