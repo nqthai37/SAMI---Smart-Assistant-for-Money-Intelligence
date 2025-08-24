@@ -58,8 +58,8 @@ export default function Homepage() {
       const fullTeamDetails = {
         ...team,
         ...detailsResponse?.value,
-        currentUserMode: ((team?.currentUserRole?.slice(0, 1)?.toUpperCase() || "") +
-          (team?.currentUserRole?.slice(1) || "")) as UserMode,
+        currentUserMode: ((team?.currentUserRole?.slice(0, 1)?.toUpperCase() ||
+          "") + (team?.currentUserRole?.slice(1) || "")) as UserMode,
       }
       setSelectedTeam(fullTeamDetails)
       setCurrentView("team")
@@ -170,9 +170,10 @@ export default function Homepage() {
           </Button>
         ) : null
       }
+      onTeamSelect={handleTeamClick}
     >
       {currentView === "list" ? (
-        <div className="max-w-6xl mx-auto">
+        <div className="max-w-4xl mx-auto px-4 pt-6">
           <div className="flex items-center justify-between mb-6">
             <h1 className="text-2xl font-bold text-gray-900">Nhóm của tôi</h1>
             <div className="flex items-center gap-4">
@@ -248,9 +249,7 @@ export default function Homepage() {
                           <div className="text-sm text-gray-600 mb-1">Số dư</div>
                           <div
                             className={`text-2xl font-bold ${
-                              balance >= 0
-                                ? "text-green-600"
-                                : "text-red-600"
+                              balance >= 0 ? "text-green-600" : "text-red-600"
                             }`}
                           >
                             {new Intl.NumberFormat("vi-VN", {
