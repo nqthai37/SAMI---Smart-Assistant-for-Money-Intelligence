@@ -207,8 +207,8 @@ const myTransactions = useMemo(() => {
     const lowerCaseSearchTerm = myTransactionSearchTerm.toLowerCase();
     personalFiltered = personalFiltered.filter(
       (t) =>
-        t.description.toLowerCase().includes(lowerCaseSearchTerm) ||
-        t.categoryName.toLowerCase().includes(lowerCaseSearchTerm),
+        t.description ? t.description.toLowerCase().includes(lowerCaseSearchTerm) : false ||
+        t.categoryName ? t.categoryName.toLowerCase().includes(lowerCaseSearchTerm) : false,
     );
   }
 
@@ -996,7 +996,7 @@ const createLineChart = () => {
               <Input
                 placeholder="Tìm kiếm..."
                 className="w-40 pl-10"
-                value={myTransactionSearchTerm}
+                value={myTransactionSearchTerm || ""}
                 onChange={(e) => setMyTransactionSearchTerm(e.target.value)}
               />
             </div>
