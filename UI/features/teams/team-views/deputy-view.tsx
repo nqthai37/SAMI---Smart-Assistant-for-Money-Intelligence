@@ -254,7 +254,7 @@ export function DeputyView({ team, onModeChange, onUpdateTeam }: DeputyViewProps
     if (!currentUserActualRole) return [];
     const currentUserIndex = lowerCaseRoleHierarchy.indexOf(currentUserActualRole.toLowerCase());
     if (currentUserIndex === -1) return [];
-    return roleHierarchy.slice(currentUserIndex); // Chỉ trả về các vai trò thấp hơn vai trò hiện tại của user
+    return roleHierarchy.slice(currentUserIndex + 1); // Chỉ trả về các vai trò thấp hơn vai trò hiện tại của user
   }
 
   // Sửa hàm check user hiện tại

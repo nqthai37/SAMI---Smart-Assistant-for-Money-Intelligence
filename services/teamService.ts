@@ -339,7 +339,7 @@ const changeMemberRole = async (teamId: number, memberId: number, userId: number
     if (changerRoleIndex >= targetRoleIndex) {
       bad('Bạn không có quyền thay đổi vai trò của thành viên này', 403);
     }
-    if (newRoleIndex < changerRoleIndex) {
+    if (newRoleIndex <= changerRoleIndex) {
       bad('Bạn không thể gán một vai trò cao hơn vai trò của mình', 403);
     }
     // B3: Gọi model để thay đổi vai trò thành viên
