@@ -59,6 +59,8 @@ export function ProfileSettings() {
     const { id, value } = e.target;
     setFormData(prev => ({ ...prev, [id]: value }));
   };
+
+  const [dateError, setDateError] = useState("");
   
   const handleUpdateProfile = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -76,6 +78,13 @@ export function ProfileSettings() {
             )).toISOString()
           : undefined,
       };
+
+      if (dateError) {
+          toast.error(dateError);
+          setIsLoading(false);
+          return;
+        }
+
 
       const success = await updateUser(payload)
 
@@ -140,9 +149,13 @@ export function ProfileSettings() {
           <Label className="mb-2 block">Ngày sinh</Label>
           <DateInput
             value={dateOfBirth}
-            onChange={(d) => setDateOfBirth(d)}
+            onChange={(d, err) => {
+              setDateOfBirth(d);
+              setDateError(err || "");
+            }}
             disabled={isLoading}
           />
+           {dateError && <p className="text-red-500 text-sm">{dateError}</p>}
         </div>
         <div>
           <Label className="mb-2 block">Giới tính</Label>

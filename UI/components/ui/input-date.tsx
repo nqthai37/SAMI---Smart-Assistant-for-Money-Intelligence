@@ -1,41 +1,53 @@
+// File: components/ui/input-date.tsx
+"use client";
+
 import { useState, useEffect } from "react";
 import { Input } from "@/components/ui/input";
 import { format, parse } from "date-fns";
 
 interface DateInputProps {
   value?: Date;
-  onChange: (date: Date | undefined) => void;
+  onChange: (date: Date | undefined, error?: string) => void;
   disabled?: boolean;
 }
 
 export function DateInput({ value, onChange, disabled }: DateInputProps) {
   const [text, setText] = useState(value ? format(value, "dd/MM/yyyy") : "");
 
-  // Đồng bộ hiển thị khi value thay đổi
-  useEffect(() => {
-    setText(value ? format(value, "dd/MM/yyyy") : "");
-  }, [value]);
-
   const handleChange = (val: string) => {
+    // Chỉ cho phép số và "/"
     let clean = val.replace(/[^\d]/g, "");
-    if (clean.length > 2) clean = clean.slice(0, 2) + "/" + clean.slice(2);
-    if (clean.length > 5) clean = clean.slice(0, 5) + "/" + clean.slice(5);
-    if (clean.length > 10) clean = clean.slice(0, 10);
+
+    // Thêm dấu "/" tự động
+    if (clean.length > 2 && clean.length <= 4) {
+      clean = clean.slice(0, 2) + "/" + clean.slice(2);
+    } else if (clean.length > 4) {
+      clean = clean.slice(0, 2) + "/" + clean.slice(2, 4) + "/" + clean.slice(4);
+    }
+
     setText(clean);
   };
 
   const handleBlur = () => {
     if (!text.trim()) {
-      onChange(undefined);
+      onChange(undefined, "");
       return;
     }
+
     const parsed = parse(text, "dd/MM/yyyy", new Date());
-    if (!isNaN(parsed.getTime())) {
-      onChange(parsed);
-    } else {
-      onChange(undefined);
-      setText("");
+    const [day, month, year] = text.split("/").map(Number);
+
+    if (
+      isNaN(parsed.getTime()) ||
+      parsed.getDate() !== day ||
+      parsed.getMonth() + 1 !== month ||
+      parsed.getFullYear() !== year
+    ) {
+      onChange(undefined, "Ngày không chuẩn format");
+      return;
     }
+
+    onChange(parsed, "");
   };
 
   return (
@@ -46,7 +58,7 @@ export function DateInput({ value, onChange, disabled }: DateInputProps) {
       onChange={(e) => handleChange(e.target.value)}
       onBlur={handleBlur}
       disabled={disabled}
-      maxLength={10}
+      maxLength={10} //  dd/MM/yyyy
     />
   );
 }
