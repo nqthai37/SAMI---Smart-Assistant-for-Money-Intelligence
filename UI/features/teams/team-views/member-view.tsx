@@ -93,13 +93,13 @@ export function MemberView({
   const [selectedTransactionToEdit, setSelectedTransactionToEdit] = useState<Transaction | null>(null) // New state for selected transaction
   const [showQuickAddTransactionDialog, setShowQuickAddTransactionDialog] = useState(false) // New state for quick add dialog
 
-  const formatCurrency = (amount: number) => {
-    return new Intl.NumberFormat("vi-VN", {
-      style: "currency",
-      currency: "VND",
-    }).format(amount)
-  }
-
+const formatCurrency = (amount: number, currencyCode: string = "VND") => {
+  console.log({amount, currencyCode})
+  return new Intl.NumberFormat("vi-VN", { 
+    style: "currency", 
+    currency: currencyCode 
+  }).format(amount);
+};
   // Format short date
   const formatShortDate = (dateString: string) => {
     const date = new Date(dateString)
@@ -278,10 +278,10 @@ const myExpenseBreakdown = Object.entries(myExpensesByCategory)
   })
   .filter((item) => item.percentage > 0)
   // Group totals based on filtered transactions (for group reports)
-  const groupTotalIncome = filteredTransactions.filter((t) => t.type === "income").reduce((sum, t) => sum + t.amount, 0)
+  const groupTotalIncome = filteredTransactions.filter((t) => t.type === "income").reduce((sum, t) => sum + parseFloat(t.amount), 0)
   const groupTotalExpenses = filteredTransactions
     .filter((t) => t.type === "expense")
-    .reduce((sum, t) => sum + t.amount, 0)
+    .reduce((sum, t) => sum + parseFloat(t.amount), 0)
   const groupBalance = groupTotalIncome - groupTotalExpenses
 
   // Monthly revenue calculation based on team data (hardcoded for now, but would use filtered data)
@@ -465,50 +465,58 @@ const handleAddTransaction = async (transactionData: {
 // Data for charts (matching image values) - these should ideally be derived from filteredTransactions
 // Data for charts - derived from filteredTransactions
 const chartData = useMemo(() => {
-  // Tính tổng thu nhập và chi tiêu từ filteredTransactions
-  // const userID = user?.id;
-  const groupTotalIncome = filteredTransactions.filter(t => t.type === 'income').reduce((sum, t) => sum + t.amount, 0);
-  const groupTotalExpenses = filteredTransactions.filter(t => t.type === 'expense').reduce((sum, t) => sum + t.amount, 0);
+  const groupTotalIncome = filteredTransactions.filter(t => t.type === 'income').reduce((sum, t) => sum + parseFloat(t.amount.toString()), 0);
+  const groupTotalExpenses = filteredTransactions.filter(t => t.type === 'expense').reduce((sum, t) => sum + parseFloat(t.amount.toString()), 0);
 
-  // Tính breakdown thu nhập theo category
+  // Sửa lại tính breakdown thu nhập
   const incomeByCategory = filteredTransactions
     .filter(t => t.type === 'income')
     .reduce((acc, t) => {
-      acc[t.categoryName] = (acc[t.categoryName] || 0) + t.amount;
+      const categoryName = t.categoryName || t.category || 'Khác';
+      const amount = parseFloat(t.amount.toString()) || 0; // Đảm bảo convert đúng
+      acc[categoryName] = (acc[categoryName] || 0) + amount;
       return acc;
     }, {} as Record<string, number>);
 
   const incomeBreakdown = Object.entries(incomeByCategory)
     .map(([categoryName, amount], index) => {
       const colors = ["#10B981", "#3B82F6", "#8B5CF6", "#F59E0B", "#EF4444"];
+      const percentage = groupTotalIncome > 0 ? Math.round((amount / groupTotalIncome) * 100) : 0;
+      
       return {
-        categoryName,
-        percentage: groupTotalIncome > 0 ? Math.round((amount / groupTotalIncome) * 100) : 0,
+        category: categoryName,
+        percentage: Math.max(percentage, 0), // Đảm bảo không âm
         color: colors[index % colors.length],
+        amount: amount // Thêm amount để debug
       };
     })
-    .filter(item => item.percentage > 0);
+    .filter(item => item.percentage > 0 && item.amount > 0); // Lọc chặt chẽ hơn
 
-  // Tính breakdown chi tiêu theo category
+  // Tương tự cho expenses
   const expensesByCategory = filteredTransactions
     .filter(t => t.type === 'expense')
     .reduce((acc, t) => {
-      acc[t.categoryName] = (acc[t.categoryName] || 0) + t.amount;
+      const categoryName = t.categoryName || t.category || 'Khác';
+      const amount = parseFloat(t.amount.toString()) || 0;
+      acc[categoryName] = (acc[categoryName] || 0) + amount;
       return acc;
     }, {} as Record<string, number>);
 
   const expenseBreakdown = Object.entries(expensesByCategory)
     .map(([category, amount], index) => {
       const colors = ["#EF4444", "#F59E0B", "#06B6D4", "#84CC16", "#8B5CF6"];
+      const percentage = groupTotalExpenses > 0 ? Math.round((amount / groupTotalExpenses) * 100) : 0;
+      
       return {
         category,
-        percentage: groupTotalExpenses > 0 ? Math.round((amount / groupTotalExpenses) * 100) : 0,
+        percentage: Math.max(percentage, 0),
         color: colors[index % colors.length],
+        amount: amount
       };
     })
-    .filter(item => item.percentage > 0);
+    .filter(item => item.percentage > 0 && item.amount > 0);
 
-  // Tính yearly trend từ allTransactions (12 tháng gần đây)
+  // Yearly trend giữ nguyên nhưng cải thiện
   const now = new Date();
   const yearlyTrend = [];
   
@@ -524,18 +532,28 @@ const chartData = useMemo(() => {
     
     const monthlyIncome = monthlyTransactions
       .filter(t => t.type === 'income')
-      .reduce((sum, t) => sum + t.amount, 0);
+      .reduce((sum, t) => sum + parseFloat(t.amount.toString()), 0);
       
     const monthlyExpense = monthlyTransactions
       .filter(t => t.type === 'expense')
-      .reduce((sum, t) => sum + t.amount, 0);
-    
+      .reduce((sum, t) => sum + parseFloat(t.amount.toString()), 0);
+
     yearlyTrend.push({
       month: monthName,
       income: monthlyIncome,
       expense: monthlyExpense,
     });
   }
+
+  // Debug log
+  console.log('Chart data debug:', {
+    groupTotalIncome,
+    groupTotalExpenses,
+    incomeByCategory,
+    incomeBreakdown,
+    expensesByCategory,
+    expenseBreakdown
+  });
 
   return {
     generalIncome: groupTotalIncome,
@@ -769,18 +787,18 @@ const createLineChart = () => {
     }
     if (filterType === "monthly" && filterValue && "month" in filterValue) {
       const monthNames = [
-        "Tháng 1",
-        "Tháng 2",
-        "Tháng 3",
-        "Tháng 4",
-        "Tháng 5",
-        "Tháng 6",
-        "Tháng 7",
-        "Tháng 8",
-        "Tháng 9",
-        "Tháng 10",
-        "Tháng 11",
-        "Tháng 12",
+        "T1",
+        "T2",
+        "T3",
+        "T4",
+        "T5",
+        "T6",
+        "T7",
+        "T8",
+        "T9",
+        "T10",
+        "T11",
+        "T12",
       ]
       return `${monthNames[filterValue.month]}, ${filterValue.year}`
     }
@@ -821,13 +839,13 @@ const createLineChart = () => {
       </div>
 
       {/* Personal Stats */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-6">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
         <Card>
           <CardContent className="p-6">
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm font-medium text-gray-600">Doanh thu của tôi</p>
-                <p className="text-2xl font-bold text-gray-900">{formatCurrency(myPersonalIncome)}</p>
+                <p className="text-2xl font-bold text-gray-900">{formatCurrency(myPersonalIncome, team.currency||'VND')}</p>
                 <p className="text-xs text-green-600 mt-1">Tháng này</p>
               </div>
             </div>
@@ -862,7 +880,7 @@ const createLineChart = () => {
           </CardContent>
         </Card>
 
-        {team.canMembersViewReports && ( // Conditionally render "Số dư của nhóm"
+        {team.canViewGroupBalance && ( // Conditionally render "Số dư của nhóm"
           <Card>
             <CardContent className="p-6">
               <div className="flex items-center justify-between">
@@ -990,130 +1008,59 @@ const createLineChart = () => {
         </CardHeader>
         <CardContent>
           <Tabs defaultValue="all" className="w-full">
-            <TabsList className="grid w-full grid-cols-2">
+            <TabsList className="grid w-full grid-cols-1">
               <TabsTrigger value="all">Tất cả ({myTransactions.length})</TabsTrigger>
-              <TabsTrigger value="requests">Yêu cầu ({myPendingRequests.length})</TabsTrigger>
+              {/* <TabsTrigger value="requests">Yêu cầu ({myPendingRequests.length})</TabsTrigger> */}
             </TabsList>
 
             <TabsContent value="all" className="space-y-4 mt-4">
               {myTransactions.map((transaction) => (
-                <div
-                  key={transaction.id}
-                  className={`p-4 border rounded-lg ${
-                    transaction.status === "edit_requested"
-                      ? "bg-yellow-50 border-yellow-200"
-                      : transaction.status === "delete_requested"
-                        ? "bg-red-50 border-red-200"
-                        : "bg-white hover:bg-gray-50"
-                  }`}
-                >
-                  <div className="flex items-start justify-between mb-3">
-                    <div className="flex-1">
-                      <div className="flex items-center gap-3 mb-2">
-                        <h4 className="font-medium">{transaction.description}</h4>
-                        <Badge variant="outline" className="text-xs">
-                          {transaction.category}
-                        </Badge>
-                        {transaction.status !== "approved" && (
-                          <Badge
-                            variant="outline"
-                            className={`text-xs ${
-                              transaction.status === "edit_requested"
-                                ? "border-yellow-500 text-yellow-700"
-                                : "border-red-500 text-red-700"
-                            }`}
-                          >
-                            {transaction.status === "edit_requested" ? "Yêu cầu sửa" : "Yêu cầu xóa"}
-                          </Badge>
-                        )}
-                      </div>
-                      <p className="text-sm text-gray-600 mb-1">{transaction.createdAt}</p>
-                      {transaction.status === "approved" && (
-                        <p className="text-xs text-green-600">Giao dịch bình thường</p>
-                      )}
-                      {transaction.requestReason && (
-                        <div className="mt-2 p-3 bg-orange-50 border border-orange-200 rounded">
-                          <p className="text-sm font-medium text-orange-800 mb-1">
-                            Yêu cầu từ {transaction.requestedBy}:
-                          </p>
-                          <p className="text-sm text-orange-700">{transaction.requestReason}</p>
-                        </div>
-                      )}
-                    </div>
-                    <div className="text-right flex items-center gap-2">
-                      <p
-                        className={`font-semibold text-lg ${transaction.type === "income" ? "text-green-600" : "text-red-600"}`}
-                      >
-                        {transaction.type === "income" ? "+" : "-"}
-                        {formatCurrency(transaction.amount)}
-                      </p>
-                      {transaction.status === "approved" && (
-                        <>
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            className="h-8 w-8 text-gray-500 hover:bg-gray-100"
-                            onClick={() => handleEditClick(transaction)}
-                          >
-                            <Edit className="w-4 h-4" />
-                          </Button>
-                          <AlertDialog>
-                            <AlertDialogTrigger asChild>
-                              <Button variant="ghost" size="icon" className="h-8 w-8 text-red-500 hover:bg-red-50">
-                                <Trash2 className="w-4 h-4" />
-                              </Button>
-                            </AlertDialogTrigger>
-                            <AlertDialogContent>
-                              <AlertDialogHeader>
-                                <AlertDialogTitle>Bạn có chắc chắn muốn xóa?</AlertDialogTitle>
-                                <AlertDialogDescription>
-                                  Hành động này không thể hoàn tác. Thao tác này sẽ xóa vĩnh viễn giao dịch này khỏi hệ
-                                  thống.
-                                </AlertDialogDescription>
-                              </AlertDialogHeader>
-                              <AlertDialogFooter>
-                                <AlertDialogCancel>Hủy</AlertDialogCancel>
-                                <AlertDialogAction onClick={() => handleConfirmDelete(transaction.id)}>
-                                  Xóa
-                                </AlertDialogAction>
-                              </AlertDialogFooter>
-                            </AlertDialogContent>
-                          </AlertDialog>
-                        </>
-                      )}
-                    </div>
-                  </div>
-                  {transaction.status !== "approved" && (
-                    <div className="flex gap-2 mt-3">
-                      <Button
-                        size="sm"
-                        className="flex-1"
-                        onClick={() =>
-                          handleAcceptRequest(
-                            transaction.id,
-                            transaction.status === "edit_requested" ? "edit" : "delete",
-                          )
-                        }
-                      >
-                        <CheckCircle className="w-4 h-4 mr-2" />
-                        Chấp nhận
-                      </Button>
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        className="flex-1 bg-transparent"
-                        onClick={() => handleRejectRequest(transaction.id)}
-                      >
-                        <XCircle className="w-4 h-4 mr-2" />
-                        Từ chối
-                      </Button>
-                    </div>
-                  )}
-                </div>
-              ))}
+              <div key={transaction.id} className="bg-white rounded-lg shadow-sm border p-4 mb-3">
+    <div className="flex justify-between items-start mb-2">
+      <div className="flex-1">
+        <h3 className="font-semibold text-gray-900 mb-1">
+          {transaction.description}
+        </h3>
+        <p className="text-sm text-gray-500 mb-1">
+          {formatShortDate(transaction.createdAt)}
+        </p>
+        <span className="inline-block px-2 py-1 text-xs rounded-full bg-green-100 text-green-800">
+          {transaction.categoryName}
+        </span>
+      </div>
+      
+      <div className="text-right">
+        <p className={`text-lg font-bold mb-2 ${
+          transaction.type === "income" ? "text-green-600" : "text-red-600"
+        }`}>
+          {transaction.type === "income" ? "+" : "-"}{formatCurrency(transaction.amount)} đ
+        </p>
+        
+        {/* CHUYỂN CÁC NÚT VỀ BÊN PHẢI, DƯỚI TIỀN */}
+        <div className="flex gap-2 justify-end">
+          <button
+            onClick={() => {
+              setSelectedTransactionToEdit(transaction);
+              setShowEditTransactionDialog(true);
+            }}
+            className="flex items-center gap-1 text-blue-600 hover:text-blue-800"
+          >
+            <Edit className="h-4 w-4" />
+          </button>
+          <button
+            onClick={() => onDeleteTransaction(transaction.id)}
+            className="flex items-center gap-1 text-red-600 hover:text-red-800"
+          >
+            <Trash2 className="h-4 w-4" />
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+))}
             </TabsContent>
 
-            <TabsContent value="requests" className="space-y-4 mt-4">
+            {/* <TabsContent value="requests" className="space-y-4 mt-4">
               {myPendingRequests.map((transaction) => (
                 <div
                   key={transaction.id}
@@ -1173,13 +1120,13 @@ const createLineChart = () => {
                   </div>
                 </div>
               ))}
-            </TabsContent>
+            </TabsContent> */}
           </Tabs>
         </CardContent>
       </Card>
 
       {/* Group Reports Section (Conditional) */}
-      {team.canMembersViewReports && (
+      {team.allowMemberViewReport && (
         <div className="space-y-6">
           <h2 className="text-xl font-bold text-gray-900">Báo cáo nhóm</h2>
           {/* Financial Overview - 3 cards */}
