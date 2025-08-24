@@ -446,7 +446,6 @@ const handleAddTransaction = async (transactionData: {
     console.log('Frontend transaction created:', frontendTransaction);
     
     onUpdateTransaction(frontendTransaction);
-    toast.success("Giao dịch đã được thêm thành công!");
     
   } catch (error: any) {
     console.error('❌ Add transaction error:', error);
@@ -461,6 +460,71 @@ const handleAddTransaction = async (transactionData: {
       toast.error(error.message || "Đã xảy ra lỗi khi thêm giao dịch.");
     }
   }
+};
+
+const handleEditTransaction = async (updatedTransaction: Transaction) => {
+  if (!user || !token || !updatedTransaction.id) {
+    toast.error("Vui lòng đăng nhập hoặc giao dịch không hợp lệ.");
+    return;
+  }
+  
+  try {
+    const payload = {
+      teamId: parseInt(team.id.toString(), 10), // Đảm bảo teamId là số
+      amount: Number(updatedTransaction.amount),
+      type: updatedTransaction.type,
+      categoryName: updatedTransaction.categoryName,
+      transactionDate: new Date(updatedTransaction.createdAt).toISOString(),
+      description: updatedTransaction.description,
+    };
+    
+    console.log('Sending PUT request with payload:', payload);
+    const response = await api.put(`/transactions/${updatedTransaction.id}`, payload);
+    
+    console.log('API Success Response:', response.data);
+    
+    // Cập nhật lại giao dịch trong state của component cha
+    onUpdateTransaction(response.data);
+    toast.success("Giao dịch đã được cập nhật thành công!");
+    setShowEditTransactionDialog(false);
+    
+  } catch (error: any) {
+    console.error('❌ Edit transaction error:', error);
+    
+    if (error.response) {
+      console.error('Error response:', error.response.data);
+      const errorMessage = error.response.data.message || error.response.data.error || 'Cập nhật giao dịch thất bại';
+      toast.error(errorMessage);
+    } else if (error.request) {
+      toast.error("Lỗi kết nối mạng. Vui lòng thử lại.");
+    } else {
+      toast.error(error.message || "Đã xảy ra lỗi khi cập nhật giao dịch.");
+    }
+  }
+};
+
+const handleDeleteTransaction = async (transactionId: string) => {
+  if (!user || !token) {
+    toast.error("Vui lòng đăng nhập để thực hiện hành động này.");
+    return;
+  }
+
+  try {
+    await api.delete(`/transactions/${transactionId}`);
+    
+    // Gọi prop từ component cha để cập nhật UI
+    onDeleteTransaction(transactionId); 
+    
+    toast.success("Giao dịch đã được xóa thành công!");
+  } catch (error: any) {
+    console.error('❌ Delete transaction error:', error);
+    if (error.response) {
+      const errorMessage = error.response.data.message || 'Xóa giao dịch thất bại';
+      toast.error(errorMessage);
+    } else {
+      toast.error("Đã xảy ra lỗi khi xóa giao dịch.");
+    }
+  }
 };
 // Data for charts (matching image values) - these should ideally be derived from filteredTransactions
 // Data for charts - derived from filteredTransactions
@@ -870,7 +934,7 @@ const createLineChart = () => {
           <CardContent className="p-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium text-gray-600">Tổng số giao duyệt</p>
+                <p className="text-sm font-medium text-gray-600">Tổng số giao dịch</p>
                 <p className="text-2xl font-bold text-blue-600">
                   {myTransactions.filter((t) => t.userId==user.id).length}
                 </p>
@@ -1033,7 +1097,7 @@ const createLineChart = () => {
         <p className={`text-lg font-bold mb-2 ${
           transaction.type === "income" ? "text-green-600" : "text-red-600"
         }`}>
-          {transaction.type === "income" ? "+" : "-"}{formatCurrency(transaction.amount)} đ
+          {transaction.type === "income" ? "+" : "-"}{formatCurrency(transaction.amount, team.currency||'VND')}
         </p>
         
         {/* CHUYỂN CÁC NÚT VỀ BÊN PHẢI, DƯỚI TIỀN */}
@@ -1048,7 +1112,9 @@ const createLineChart = () => {
             <Edit className="h-4 w-4" />
           </button>
           <button
-            onClick={() => onDeleteTransaction(transaction.id)}
+            onClick={() => {
+              handleDeleteTransaction(transaction.id);
+            }}
             className="flex items-center gap-1 text-red-600 hover:text-red-800"
           >
             <Trash2 className="h-4 w-4" />
@@ -1137,7 +1203,7 @@ const createLineChart = () => {
                   <div>
                     <p className="text-sm font-medium text-gray-600">Số dư hiện tại</p>
                     <p className={`text-2xl font-bold ${groupBalance >= 0 ? "text-green-600" : "text-red-600"}`}>
-                      {formatCurrency(groupBalance)}
+                      {formatCurrency(groupBalance, team.currency)}
                     </p>
                     <p className="text-xs text-gray-600 mt-1">Tổng tích lũy</p>
                   </div>
@@ -1151,7 +1217,7 @@ const createLineChart = () => {
                 <div className="flex items-center justify-between">
                   <div>
                     <p className="text-sm font-medium text-gray-600">Doanh thu tháng này</p>
-                    <p className="text-2xl font-bold text-blue-600">{formatCurrency(groupTotalIncome)}</p>
+                    <p className="text-2xl font-bold text-blue-600">{formatCurrency(groupTotalIncome, team.currency)}</p>
                     <p className="text-xs text-green-600 mt-1">+{monthlyGrowth}% so với tháng trước</p>
                   </div>
                   <TrendingUp className="w-8 h-8 text-blue-600" />
@@ -1165,7 +1231,7 @@ const createLineChart = () => {
                 <div className="flex items-center justify-between">
                   <div>
                     <p className="text-sm font-medium text-gray-600">Tổng chi tiêu</p>
-                    <p className="text-2xl font-bold text-red-600">{formatCurrency(groupTotalExpenses)}</p>
+                    <p className="text-2xl font-bold text-red-600">{formatCurrency(groupTotalExpenses, team.currency)}</p>
                     <p className="text-xs text-gray-600 mt-1">Tháng này</p>
                   </div>
                   <Calendar className="w-8 h-8 text-red-600" />
@@ -1188,11 +1254,11 @@ const createLineChart = () => {
                 <div className="space-y-4">
                   <div className="flex justify-between items-center">
                     <span className="text-sm text-gray-600">Mục tiêu:</span>
-                    <span className="font-semibold text-green-600">{formatCurrency(incomeTarget)}</span>
+                    <span className="font-semibold text-green-600">{formatCurrency(incomeTarget, team.currency)}</span>
                   </div>
                   <div className="flex justify-between items-center">
                     <span className="text-sm text-gray-600">Hiện tại:</span>
-                    <span className="font-semibold">{formatCurrency(groupTotalIncome)}</span>
+                    <span className="font-semibold">{formatCurrency(groupTotalIncome, team.currency)}</span>
                   </div>
                   <div className="space-y-2">
                     <div className="flex justify-between items-center">
@@ -1202,7 +1268,7 @@ const createLineChart = () => {
                     <Progress value={incomeProgress} className="h-3" />
                   </div>
                   <div className="text-sm text-gray-600">
-                    Còn thiếu: {formatCurrency(incomeTarget - groupTotalIncome)}
+                    Còn thiếu: {formatCurrency(incomeTarget - groupTotalIncome, team.currency)}
                   </div>
                 </div>
               </CardContent>
@@ -1220,11 +1286,11 @@ const createLineChart = () => {
                 <div className="space-y-4">
                   <div className="flex justify-between items-center">
                     <span className="text-sm text-gray-600">Ngân sách:</span>
-                    <span className="font-semibold text-red-600">{formatCurrency(budgetLimit)}</span>
+                    <span className="font-semibold text-red-600">{formatCurrency(budgetLimit, team.currency)}</span>
                   </div>
                   <div className="flex justify-between items-center">
                     <span className="text-sm text-gray-600">Đã chi:</span>
-                    <span className="font-semibold">{formatCurrency(groupTotalExpenses)}</span>
+                    <span className="font-semibold">{formatCurrency(groupTotalExpenses, team.currency)}</span>
                   </div>
                   <div className="space-y-2">
                     <div className="flex justify-between items-center">
@@ -1287,11 +1353,11 @@ const createLineChart = () => {
                     <div className="space-y-2 text-sm">
                       <div className="flex justify-between">
                         <span className="text-gray-600">Thu nhập</span>
-                        <span className="font-semibold text-green-600">{formatCurrency(chartData.generalIncome)}</span>
+                        <span className="font-semibold text-green-600">{formatCurrency(chartData.generalIncome, team.currency)}</span>
                       </div>
                       <div className="flex justify-between">
                         <span className="text-gray-600">Chi tiêu</span>
-                        <span className="font-semibold text-red-600">{formatCurrency(chartData.generalExpense)}</span>
+                        <span className="font-semibold text-red-600">{formatCurrency(chartData.generalExpense, team.currency)}</span>
                       </div>
                     </div>
                   </CardContent>
@@ -1353,7 +1419,7 @@ const createLineChart = () => {
         isOpen={showEditTransactionDialog}
         onOpenChange={setShowEditTransactionDialog}
         transaction={selectedTransactionToEdit}
-        onSaveTransaction={onUpdateTransaction}
+        onSaveTransaction={handleEditTransaction}
       />
       {/* Quick Add Transaction Dialog */}
       <QuickAddTransactionDialog
