@@ -45,7 +45,10 @@ export default function Homepage() {
   }
 
   const handleTeamClick = async (team: Team) => {
+    setCurrentView("team")
     setIsTeamLoading(true)
+    // setIsTeamLoading(true)
+    
     try {
       const [detailsResponse, transactionsResponse] = await Promise.allSettled([
         api.get(`/teams/${team.id}/details`),
