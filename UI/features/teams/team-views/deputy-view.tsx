@@ -248,6 +248,25 @@ export function DeputyView({ team, onModeChange, onUpdateTeam }: DeputyViewProps
       setSelectedMemberForEdit(null);
     } 
   }
+  const formatJoinDate = (dateString: string | undefined): string => {
+    if (!dateString) return 'Không rõ';
+    
+    try {
+      const date = new Date(dateString);
+      
+      // Check if date is valid
+      if (isNaN(date.getTime())) return 'Không rõ';
+      
+      // Format to Vietnamese date format: dd/mm/yyyy
+      return date.toLocaleDateString('vi-VN', {
+        day: '2-digit',
+        month: '2-digit', 
+        year: 'numeric'
+      });
+    } catch (error) {
+      return 'Không rõ';
+    }
+  };
 
   // Get available roles that current user can assign
   const getAvailableRoles = (): UserRole[] => {
@@ -337,14 +356,28 @@ export function DeputyView({ team, onModeChange, onUpdateTeam }: DeputyViewProps
                   const config = roleConfig[member.role.slice(0, 1).toUpperCase() + member.role.slice(1) as UserRole]
                   const Icon = config.icon
                   const canManageOther = hasPermission(member.role)
-                  const isThisMemberTheCurrentUser = isCurrentUser(member) // Dùng hàm đã sửa
+                  const isThisMemberTheCurrentUser = isCurrentUser(member)
+
+                  // SỬA: Tạo tên đầy đủ từ User object
+                  const memberFullName = member.User ? 
+                    `${member.User.firstName || ''} ${member.User.lastName || ''}`.trim() || 
+                    member.User.email || 
+                    'Không có tên' 
+                    : member.name || 'Không có tên';
+
+                  const memberEmail = member.User?.email || member.email || 'Không có email';
+                  const memberAvatar = member.User ? 
+                    `${member.User.firstName?.charAt(0) || ''}${member.User.lastName?.charAt(0) || ''}` : 
+                    member.avatar || '??';
 
                   return (
-                    <div key={member.User.id} className="flex items-center justify-between p-4 border rounded-lg">
+                    <div key={member.User?.id || member.id} className="flex items-center justify-between p-4 border rounded-lg">
                       <div className="flex items-center gap-4">
                         <div className="relative">
                           <Avatar className="w-10 h-10">
-                            <AvatarFallback className="text-sm">{member.avatar}</AvatarFallback>
+                            <AvatarFallback className="text-sm bg-blue-500 text-white">
+                              {memberAvatar}
+                            </AvatarFallback>
                           </Avatar>
                           <div
                             className={`absolute -bottom-1 -right-1 w-3 h-3 rounded-full border-2 border-white ${
@@ -354,16 +387,26 @@ export function DeputyView({ team, onModeChange, onUpdateTeam }: DeputyViewProps
                         </div>
                         <div>
                           <div className="flex items-center gap-2 mb-1">
-                            <p className="font-medium">{member.name}</p>
+                            {/* SỬA: Sử dụng memberFullName */}
+                            <p className="font-medium">{memberFullName}</p>
                             <div className={`p-1 rounded ${config.bgColor}`}>
                               <Icon className={`w-3 h-3 ${config.color}`} />
                             </div>
                             <Badge variant="outline" className="text-xs">
                               {member.role}
                             </Badge>
+                            {/* SỬA: Thêm badge "Bạn" nếu là current user */}
+                            {isThisMemberTheCurrentUser && (
+                              <Badge variant="secondary" className="text-xs bg-blue-100 text-blue-700">
+                                Bạn
+                              </Badge>
+                            )}
                           </div>
-                          <p className="text-sm text-gray-600">{member.email}</p>
-                          <p className="text-xs text-gray-500">Tham gia: {member.joinedAt}</p>
+                          {/* SỬA: Sử dụng memberEmail */}
+                          <p className="text-sm text-gray-600">{memberEmail}</p>
+                          <p className="text-xs text-gray-500">
+                            Tham gia: {formatJoinDate(member.joinedAt)}
+                          </p>
                         </div>
                       </div>
                       <div className="flex items-center gap-2">
@@ -396,7 +439,8 @@ export function DeputyView({ team, onModeChange, onUpdateTeam }: DeputyViewProps
                                 <DialogTitle>Xác nhận xóa thành viên</DialogTitle>
                               </DialogHeader>
                               <div className="space-y-4">
-                                <p>Bạn có chắc chắn muốn xóa {selectedMember?.name} khỏi nhóm?</p>
+                                {/* SỬA: Sử dụng memberFullName trong dialog */}
+                                <p>Bạn có chắc chắn muốn xóa <strong>{memberFullName}</strong> khỏi nhóm?</p>
                                 <div className="flex gap-2">
                                   <Button variant="destructive" onClick={handleKickMember} className="flex-1">
                                     Xác nhận xóa
@@ -541,7 +585,7 @@ export function DeputyView({ team, onModeChange, onUpdateTeam }: DeputyViewProps
                 </DialogTrigger>
                 <DialogContent className="max-w-2xl">
                   <DialogHeader>
-                    <DialogTitle>Quản lý danh mục chi tiêu</DialogTitle>
+                    <DialogTitle>Quản lý danh mục</DialogTitle>
                   </DialogHeader>
                   <div className="space-y-4">
                     {/* Add new category */}
