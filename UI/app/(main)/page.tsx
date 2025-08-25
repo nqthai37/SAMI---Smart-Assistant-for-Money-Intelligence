@@ -45,6 +45,7 @@ export default function Homepage() {
   }
 
   const handleTeamClick = async (team: Team) => {
+    setCurrentView("team")
     setIsTeamLoading(true)
     try {
       const [detailsResponse, transactionsResponse] = await Promise.allSettled([
@@ -109,9 +110,9 @@ export default function Homepage() {
   }
 
   const renderTeamView = () => {
-    if (!selectedTeam) return null
     if (isTeamLoading)
       return <div className="p-6 text-center">Đang tải dữ liệu nhóm...</div>
+    if (!selectedTeam) return null
 
     const commonProps = {
       team: selectedTeam,

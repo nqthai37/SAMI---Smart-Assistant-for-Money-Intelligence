@@ -37,18 +37,18 @@ export default function MainLayout({
 
   const unreadNotificationsCount = notifications.filter((n) => !n.read).length
 
-  useEffect(() => {
-    const fetchNotifications = async () => {
-      if (!user) return
-      try {
-        const response = await api.get("/user/notifications")
-        setNotifications(response.data || [])
-      } catch (error) {
-        //toast.error("Không thể tải thông báo.")
-      }
-    }
-    fetchNotifications()
-  }, [user])
+  // useEffect(() => {
+  //   const fetchNotifications = async () => {
+  //     if (!user) return
+  //     try {
+  //       const response = await api.get("/user/notifications")
+  //       setNotifications(response.data || [])
+  //     } catch (error) {
+  //       //toast.error("Không thể tải thông báo.")
+  //     }
+  //   }
+  //   fetchNotifications()
+  // }, [user])
 
   const handleLogout = () => {
     logout()
