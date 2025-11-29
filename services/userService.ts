@@ -111,6 +111,20 @@ export const showTeamList = async (
   // Optimized: Calculate balances using database aggregations instead of fetching all transactions
   const teamIds = teams.map(t => t.id);
   
+  // Early return if no teams found - avoid unnecessary database query
+  if (teamIds.length === 0) {
+    const totalTeams = 0;
+    return {
+      data: [],
+      pagination: {
+        page,
+        limit,
+        totalItems: totalTeams,
+        totalPages: 0,
+      },
+    };
+  }
+  
   // Use groupBy to aggregate income and expense totals efficiently at database level
   const transactionSums = await prisma.transactions.groupBy({
     by: ['teamId', 'type'],
@@ -128,6 +142,7 @@ export const showTeamList = async (
     balanceMap.set(teamId, { totalIncome: 0, totalExpenses: 0 });
   }
   
+  // Use transaction_type enum values from Prisma schema
   for (const item of transactionSums) {
     const teamBalance = balanceMap.get(item.teamId);
     if (teamBalance) {

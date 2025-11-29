@@ -128,10 +128,17 @@ export const listTransactionsByTeam = async (
 
 
 // Permission checks - optimized to reduce database calls
+
+// Helper function to check if member has elevated role (owner or admin)
+const hasElevatedRole = (member: { role: string | null } | null): boolean => {
+  if (!member || !member.role) return false;
+  const role = member.role.toUpperCase();
+  return role === 'OWNER' || role === 'ADMIN';
+};
+
 export const hasPermissionToChangeOtherTransaction = async (teamId: number, userId: number) => {
-  // SỬA LỖI: Sử dụng TeamModel thay vì MemberModel đã bị xóa
   const member = await TeamModel.findMember(teamId, userId);
-  return member && (member.role === 'OWNER' || member.role === 'ADMIN');
+  return hasElevatedRole(member);
 };
 
 // Optimized: Check permission and return transaction in one call to avoid duplicate DB queries
@@ -144,7 +151,7 @@ export const checkPermissionWithTransaction = async (transactionId: number, user
   }
   
   const member = await TeamModel.findMember(transaction.teamId, userId);
-  const hasPermission = member && (member.role === 'OWNER' || member.role === 'ADMIN');
+  const hasPermission = hasElevatedRole(member);
   return { hasPermission, transaction };
 };
 
