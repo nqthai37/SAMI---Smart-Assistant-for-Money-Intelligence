@@ -156,15 +156,34 @@ class EmailService {
     });
   }
 
-  public async sendBulkEmails(emailList: EmailOptions[]): Promise<EmailResult[]> {
+  /**
+   * Send bulk emails with optimized parallel processing and rate limiting.
+   * Uses batch processing to avoid overwhelming the email server while
+   * maximizing throughput compared to sequential sending.
+   * @param emailList - Array of email options to send
+   * @param concurrencyLimit - Maximum number of concurrent email sends (default: 5)
+   */
+  public async sendBulkEmails(
+    emailList: EmailOptions[],
+    concurrencyLimit: number = 5
+  ): Promise<EmailResult[]> {
     const results: EmailResult[] = [];
     
-    for (const emailOptions of emailList) {
-      const result = await this.sendEmail(emailOptions);
-      results.push(result);
+    // Process emails in batches for controlled concurrency
+    for (let i = 0; i < emailList.length; i += concurrencyLimit) {
+      const batch = emailList.slice(i, i + concurrencyLimit);
       
-      // Add small delay to avoid rate limiting
-      await this.delay(100);
+      // Send batch in parallel
+      const batchResults = await Promise.all(
+        batch.map(emailOptions => this.sendEmail(emailOptions))
+      );
+      
+      results.push(...batchResults);
+      
+      // Add delay between batches to respect rate limits
+      if (i + concurrencyLimit < emailList.length) {
+        await this.delay(200);
+      }
     }
     
     return results;

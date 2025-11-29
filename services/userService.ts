@@ -77,7 +77,7 @@ export const showTeamList = async (
   const { page = 1, limit = 10 } = options;
   const skip = (page - 1) * limit;
 
-  // Lấy teams với transactions để tính balance
+  // Optimized: Fetch teams with member role and count only (no transaction data)
   const teams = await prisma.teams.findMany({
     where: {
       OR: [
@@ -89,13 +89,12 @@ export const showTeamList = async (
         },
       ],
     },
-    include: {
-      transactions: {
-        select: {
-          amount: true,
-          type: true,
-        },
-      },
+    select: {
+      id: true,
+      teamName: true,
+      currency: true,
+      createdAt: true,
+      updatedAt: true,
       teamMembers: {
         where: { userId: userId },
         select: { role: true },
@@ -109,38 +108,56 @@ export const showTeamList = async (
     orderBy: { createdAt: 'desc' },
   });
 
-  // Tính balance cho từng team
+  // Optimized: Calculate balances using database aggregations instead of fetching all transactions
+  const teamIds = teams.map(t => t.id);
+  
+  // Use groupBy to aggregate income and expense totals efficiently at database level
+  const transactionSums = await prisma.transactions.groupBy({
+    by: ['teamId', 'type'],
+    where: {
+      teamId: { in: teamIds },
+    },
+    _sum: {
+      amount: true,
+    },
+  });
+
+  // Create a lookup map for efficient balance calculation
+  const balanceMap = new Map<number, { totalIncome: number; totalExpenses: number }>();
+  for (const teamId of teamIds) {
+    balanceMap.set(teamId, { totalIncome: 0, totalExpenses: 0 });
+  }
+  
+  for (const item of transactionSums) {
+    const teamBalance = balanceMap.get(item.teamId);
+    if (teamBalance) {
+      if (item.type === 'income') {
+        teamBalance.totalIncome = Number(item._sum.amount || 0);
+      } else if (item.type === 'expense') {
+        teamBalance.totalExpenses = Number(item._sum.amount || 0);
+      }
+    }
+  }
+
+  // Build the response with calculated balances
   const teamsWithBalance = teams.map(team => {
-    const totalIncome = team.transactions
-      .filter(t => t.type === 'income')
-      .reduce((sum, t) => sum + Number(t.amount), 0);
-    
-    const totalExpenses = team.transactions
-      .filter(t => t.type === 'expense')
-      .reduce((sum, t) => sum + Number(t.amount), 0);
-    
-    const balance = totalIncome - totalExpenses;
-    
+    const balance = balanceMap.get(team.id) || { totalIncome: 0, totalExpenses: 0 };
     const currentUserRole = team.teamMembers[0]?.role || 'member';
     
     return {
       id: team.id,
       teamName: team.teamName,
-      // description: team.description,
-      // color: team.color || 'bg-blue-500',
       currency: team.currency,
       createdAt: team.createdAt,
       updatedAt: team.updatedAt,
-      totalIncome,
-      totalExpenses,
-      balance,
+      totalIncome: balance.totalIncome,
+      totalExpenses: balance.totalExpenses,
+      balance: balance.totalIncome - balance.totalExpenses,
       currentUserRole,
-      currentUserMode: currentUserRole, // Assuming mode is same as role
+      currentUserMode: currentUserRole,
       members: { length: team._count.teamMembers },
     };
   });
-
-  
 
   const totalTeams = await prisma.teams.count({
     where: {

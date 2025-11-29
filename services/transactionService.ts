@@ -3,8 +3,7 @@ import { TransactionModel } from '../model/transactionModel.js';
 import { TeamModel } from '../model/teamModel.js';
 // Bỏ import MemberModel vì đã tích hợp vào TeamModel
 import type { Prisma } from '@prisma/client';
-import { PrismaClient } from '@prisma/client'; // THÊM DÒNG NÀY
-const prisma = new PrismaClient(); 
+import { prisma } from '../lib/prisma.js'; // Use shared PrismaClient instance 
 
 interface AddTransactionData {
   teamId: number;
@@ -128,28 +127,41 @@ export const listTransactionsByTeam = async (
 };
 
 
-// Permission checks
+// Permission checks - optimized to reduce database calls
 export const hasPermissionToChangeOtherTransaction = async (teamId: number, userId: number) => {
   // SỬA LỖI: Sử dụng TeamModel thay vì MemberModel đã bị xóa
   const member = await TeamModel.findMember(teamId, userId);
   return member && (member.role === 'OWNER' || member.role === 'ADMIN');
 };
 
-export const hasPermissionToEdit = async (transactionId: number, userId: number) => {
+// Optimized: Check permission and return transaction in one call to avoid duplicate DB queries
+export const checkPermissionWithTransaction = async (transactionId: number, userId: number) => {
   const transaction = await TransactionModel.findById(transactionId);
-  if (!transaction) return false;
-  if (transaction.userId === userId) return true;
-  return hasPermissionToChangeOtherTransaction(transaction.teamId, userId);
+  if (!transaction) return { hasPermission: false, transaction: null };
+  
+  if (transaction.userId === userId) {
+    return { hasPermission: true, transaction };
+  }
+  
+  const member = await TeamModel.findMember(transaction.teamId, userId);
+  const hasPermission = member && (member.role === 'OWNER' || member.role === 'ADMIN');
+  return { hasPermission, transaction };
 };
 
-// Edit transaction directly
+export const hasPermissionToEdit = async (transactionId: number, userId: number) => {
+  const { hasPermission } = await checkPermissionWithTransaction(transactionId, userId);
+  return hasPermission;
+};
+
+// Edit transaction directly - optimized to avoid duplicate permission check
 export const editTransactionItem = async (
   transactionId: number,
   updates: Partial<AddTransactionData>,
   userId: number
 ) => {
-  const canEdit = await hasPermissionToEdit(transactionId, userId);
-  if (!canEdit) {
+  const { hasPermission, transaction } = await checkPermissionWithTransaction(transactionId, userId);
+  
+  if (!hasPermission || !transaction) {
     const error = new Error('Bạn không có quyền chỉnh sửa giao dịch này.');
     (error as any).statusCode = 403;
     throw error;
@@ -163,19 +175,20 @@ export const editTransactionItem = async (
 
 // Delete transaction directly
 export const hasPermissionToDelete = async (transactionId: number, userId: number) => {
-  const transaction = await TransactionModel.findById(transactionId);
-  if (!transaction) return false;
-  if (transaction.userId === userId) return true;
-  return hasPermissionToChangeOtherTransaction(transaction.teamId, userId);
+  const { hasPermission } = await checkPermissionWithTransaction(transactionId, userId);
+  return hasPermission;
 };
 
+// Delete transaction - optimized to avoid duplicate permission check
 export const deleteTransactionItem = async (transactionId: number, userId: number) => {
-  const canDelete = await hasPermissionToDelete(transactionId, userId);
-  if (!canDelete) {
+  const { hasPermission, transaction } = await checkPermissionWithTransaction(transactionId, userId);
+  
+  if (!hasPermission || !transaction) {
     const error = new Error('Bạn không có quyền xóa giao dịch này.');
     (error as any).statusCode = 403;
     throw error;
   }
+  
   await TransactionModel.remove(transactionId);
   return true;
 };
