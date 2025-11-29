@@ -3,6 +3,8 @@ import { TeamModel } from '../model/teamModel.js';
 import { UserModel } from '../model/UserModel.js'; // Giả sử bạn có một UserModel để tìm người dùng theo email
 import EmailService from './emailService.js'; // Giả sử bạn có một EmailService để gửi email
 import { v4 as uuidv4 } from 'uuid';
+import { prisma } from '../lib/prisma.js'; // Use shared PrismaClient for optimized queries
+
 // ===== Validators (đặt ngay trong file cho đỡ thiếu import) =====
 const bad = (msg: string, code = 400) => {
   const e: any = new Error(msg);
@@ -213,48 +215,32 @@ const handleInviteResponse = async (inviteToken: string, email: string) => {
 }
 
 const calculateBalance = async (teamId: number) => {
-  const transactions = await TeamModel.getTransactions(teamId);
-  if (!transactions || transactions.length === 0) {
-    return {
-      totalIncome: 0,
-      totalExpenses: 0,
-      balance: 0
-    };
-  }
-  
-  // const balance = transactions.reduce((total, tx) => {
-  //   // Convert amounts to numbers explicitly
-  //   const currentAmount = Number(tx.amount || 0);
-  //   const currentTotal = Number(total);
-
-  //   if (tx.type === 'income') {
-  //     return currentTotal + currentAmount;
-  //   } else if (tx.type === 'expense') {
-  //     return currentTotal - currentAmount;
-  //   }
-  //   return currentTotal;
-  // }, 0);
-  // return balance;
-
-  const totals = transactions.reduce((acc, tx) => {
-    const amount = Number(tx.amount || 0);
-    
-    if (tx.type === 'income') {
-      acc.totalIncome += amount;
-    } else if (tx.type === 'expense') {
-      acc.totalExpenses += amount;
-    }
-    return acc;
-  }, {
-    totalIncome: 0,
-    totalExpenses: 0
+  // Optimized: Use database aggregation instead of fetching all transactions
+  const transactionSums = await prisma.transactions.groupBy({
+    by: ['type'],
+    where: { teamId },
+    _sum: {
+      amount: true,
+    },
   });
 
-  return {
-    ...totals,
-    balance: totals.totalIncome - totals.totalExpenses
-  };
+  let totalIncome = 0;
+  let totalExpenses = 0;
 
+  for (const item of transactionSums) {
+    const amount = Number(item._sum.amount || 0);
+    if (item.type === 'income') {
+      totalIncome = amount;
+    } else if (item.type === 'expense') {
+      totalExpenses = amount;
+    }
+  }
+
+  return {
+    totalIncome,
+    totalExpenses,
+    balance: totalIncome - totalExpenses
+  };
 }
 
 const getTeamDetails = async (teamId: number, userId: number) => {
