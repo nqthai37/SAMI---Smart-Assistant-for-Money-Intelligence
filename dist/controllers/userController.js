@@ -1,9 +1,4 @@
 import * as userService from '../services/userService.js';
-/**
- * @desc Get my profile
- * @route PATCH /api/user/getProfile
- * @access Private
- */
 export const getMyProfile = async (req, res) => {
     try {
         const userId = req.user?.id; // Sửa thành req.user.id
@@ -15,6 +10,22 @@ export const getMyProfile = async (req, res) => {
     }
     catch (error) {
         console.error('Error fetching profile:', error);
+        return res.status(error.status || 500).json({ message: error.message || 'Server error' });
+    }
+};
+// search teams by keyword
+export const searchTeams = async (req, res) => {
+    try {
+        const userId = req.user?.id;
+        const { keyword } = req.body;
+        if (!userId) {
+            return res.status(401).json({ message: 'Unauthorized' });
+        }
+        const teams = await userService.searchTeams(userId, keyword);
+        return res.json(teams);
+    }
+    catch (error) {
+        console.error('Error searching teams:', error);
         return res.status(error.status || 500).json({ message: error.message || 'Server error' });
     }
 };
@@ -49,7 +60,7 @@ export const changePassword = async (req, res) => {
             return res.status(401).json({ message: 'Unauthorized' });
         }
         const { oldPassword, newPassword } = req.body;
-        await userService.changePassword(userID, oldPassword, newPassword);
+        await userService.changePassword({ id: userID }, oldPassword, newPassword);
         return res.json({ message: 'Password changed successfully' });
     }
     catch (error) {
@@ -79,27 +90,6 @@ export const showTeamList = async (req, res) => {
         return res.status(500).json({ message: 'Server error' });
     }
 };
-/**
- * @desc Search Teams
- * @route GET /api/user/workspaces/search
- * @access Private
- */
-export const searchTeam = async (req, res) => {
-    try {
-        const { query } = req.query;
-        const teams = await userService.searchTeam(query);
-        return res.json(teams);
-    }
-    catch (error) {
-        console.error('Error searching teams:', error);
-        return res.status(500).json({ message: 'Server error' });
-    }
-};
-/**
- * @desc Get notifications
- * @route GET /api/user/notifications
- * @access Private
- */
 export const getNotification = async (req, res) => {
     try {
         const userId = req.user?.id; // Sửa thành req.user.id

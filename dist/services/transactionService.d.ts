@@ -26,6 +26,9 @@ export declare const listTransactionsByTeam: (teamId: number, userId: number, op
     limit: number;
 }) => Promise<{
     data: {
+        createdBy: string;
+        createdById: number;
+        User: undefined;
         id: number;
         type: import("@prisma/client").$Enums.transaction_type;
         createdAt: Date | null;

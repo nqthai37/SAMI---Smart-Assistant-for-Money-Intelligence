@@ -21,5 +21,10 @@ declare const setCategories: RequestHandler;
 declare const renameWorkspace: RequestHandler;
 /** PATCH /api/teams/:id/report-permission (owner + admin) */
 declare const permitMemberViewReport: RequestHandler;
-export { createTeam, deleteTeam, setBudget, setIncomeGoal, setCurrency, setCategories, renameWorkspace, permitMemberViewReport, };
+declare const sendInviteEmail: RequestHandler;
+declare const handleInviteResponse: RequestHandler;
+declare const getTeamDetails: RequestHandler;
+declare const removeMember: RequestHandler;
+declare const changeMemberRole: RequestHandler;
+export { createTeam, deleteTeam, setBudget, setIncomeGoal, setCurrency, setCategories, renameWorkspace, permitMemberViewReport, sendInviteEmail, handleInviteResponse, getTeamDetails, removeMember, changeMemberRole, };
 //# sourceMappingURL=teamController.d.ts.map

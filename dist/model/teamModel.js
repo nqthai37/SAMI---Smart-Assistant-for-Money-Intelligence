@@ -1,5 +1,8 @@
 // model/teamModel.ts
 import { PrismaClient, Prisma } from '@prisma/client';
+import { UserModel } from './UserModel.js'; // Giả sử bạn có một UserModel để tìm người dùng theo email
+import EmailService from '../services/emailService.js'; // Giả sử bạn có một EmailService để gửi email
+import { removeMember } from '../controllers/teamController.js';
 const prisma = new PrismaClient();
 export const TeamModel = {
     /**
@@ -100,5 +103,221 @@ export const TeamModel = {
     countMembershipByRoles: async (teamId, userId, roles) => prisma.teamMembers.count({
         where: { teamId, userId, role: { in: roles } },
     }),
+    findById: async (teamId) => prisma.teams.findUnique({
+        where: { id: teamId },
+    }),
+    findMemberByEmail: async (teamId, email) => {
+        const userId = await UserModel.findByEmail(email);
+        if (!userId)
+            return null; // Nếu không tìm thấy người dùng theo email
+        return prisma.teamMembers.findFirst({
+            where: {
+                teamId,
+                userId: userId.id,
+            },
+            select: {
+                role: true,
+            },
+        });
+    },
+    //Tìm token mời, nếu có thì xét thời hạn, còn thời hạn thì trả về true, hết thời hạn thì trả về false để có thể mời tiếp
+    findInviteByEmail: async (teamId, email) => {
+        try {
+            return await prisma.teamInvitations.findFirst({
+                where: {
+                    teamId,
+                    inviteeEmail: email,
+                    status: 'pending',
+                    expiresAt: {
+                        gt: new Date() // Only get non-expired invitations
+                    }
+                },
+                select: {
+                    id: true,
+                    expiresAt: true
+                }
+            });
+        }
+        catch (error) {
+            console.error('Error finding invitation:', error);
+            throw new Error('Không thể kiểm tra lời mời.');
+        }
+    },
+    saveInvitation: async (data) => {
+        try {
+            return await prisma.teamInvitations.create({
+                data: {
+                    token: data.inviteToken,
+                    teamId: data.teamId,
+                    inviterId: data.inviterID,
+                    inviteeEmail: data.email,
+                    status: 'pending',
+                    expiresAt: data.expiresAt
+                }
+            });
+        }
+        catch (error) {
+            console.error('Error saving invitation:', error);
+            throw new Error('Không thể lưu lời mời.');
+        }
+    },
+    findInviteByToken: async (inviteToken) => {
+        try {
+            return await prisma.teamInvitations.findFirst({
+                where: {
+                    token: inviteToken,
+                    status: 'pending',
+                    expiresAt: {
+                        gt: new Date() // Only get non-expired invitations
+                    }
+                },
+                select: {
+                    id: true,
+                    teamId: true,
+                    inviterId: true,
+                    inviteeEmail: true,
+                    expiresAt: true
+                }
+            });
+        }
+        catch (error) {
+            console.error('Error finding invitation by token:', error);
+            throw new Error('Không thể tìm lời mời theo token.');
+        }
+    },
+    updateInvitationStatus: async (inviteId, status) => {
+        try {
+            return await prisma.teamInvitations.update({
+                where: { id: inviteId },
+                data: {
+                    status,
+                }
+            });
+        }
+        catch (error) {
+            console.error('Error updating invitation status:', error);
+            throw new Error('Không thể cập nhật trạng thái lời mời.');
+        }
+    },
+    addMember: async (teamId, userId, role) => {
+        try {
+            return await prisma.teamMembers.create({
+                data: {
+                    teamId,
+                    userId,
+                    role,
+                },
+            });
+        }
+        catch (error) {
+            console.error('Error adding member:', error);
+            throw new Error('Không thể thêm thành viên vào nhóm.');
+        }
+    },
+    getTransactions: async (teamId) => {
+        try {
+            return await prisma.transactions.findMany({
+                where: { teamId },
+            });
+        }
+        catch (error) {
+            console.error('Error getting team balance:', error);
+            throw new Error('Không thể lấy số dư của nhóm.');
+        }
+    },
+    getDetails: async (teamId, userId) => {
+        try {
+            const team = await prisma.teams.findUnique({
+                where: { id: teamId },
+                // SỬA LẠI SELECT ĐỂ LẤY THÊM THÔNG TIN THÀNH VIÊN
+                select: {
+                    id: true,
+                    teamName: true,
+                    budget: true,
+                    incomeGoal: true,
+                    currency: true,
+                    categories: true,
+                    allowMemberViewReport: true,
+                    createdAt: true,
+                    updatedAt: true,
+                    ownerId: true,
+                    // THÊM PHẦN NÀY ĐỂ LẤY DANH SÁCH THÀNH VIÊN
+                    teamMembers: {
+                        select: {
+                            role: true,
+                            joinedAt: true,
+                            // SỬA LẠI TÊN QUAN HỆ CHO ĐÚNG
+                            User: {
+                                select: {
+                                    id: true,
+                                    firstName: true,
+                                    lastName: true,
+                                    email: true,
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+            if (!team) {
+                throw new Error('Team not found');
+            }
+            return team;
+        }
+        catch (error) {
+            console.error('Error getting team details:', error);
+            throw new Error('Không thể lấy thông tin team.');
+        }
+    },
+    getMembership: async (teamId, userId) => {
+        try {
+            return await prisma.teamMembers.findUnique({
+                where: {
+                    teamId_userId: {
+                        teamId,
+                        userId
+                    }
+                },
+                select: {
+                    role: true
+                }
+            });
+        }
+        catch (error) {
+            console.error('Error getting membership:', error);
+            throw new Error('Không thể lấy thông tin thành viên.');
+        }
+    },
+    removeMember: async (teamId, memberId) => {
+        try {
+            return await prisma.teamMembers.deleteMany({
+                where: {
+                    teamId,
+                    userId: memberId
+                }
+            });
+        }
+        catch (error) {
+            console.error('Error removing member:', error);
+            throw new Error('Không thể xóa thành viên khỏi nhóm.');
+        }
+    },
+    updateMemberRole: async (teamId, memberId, newRole) => {
+        try {
+            return await prisma.teamMembers.updateMany({
+                where: {
+                    teamId,
+                    userId: memberId
+                },
+                data: {
+                    role: newRole.toLocaleLowerCase()
+                }
+            });
+        }
+        catch (error) {
+            console.error('Error changing member role:', error);
+            throw new Error('Không thể thay đổi vai trò của thành viên.');
+        }
+    },
 };
 //# sourceMappingURL=teamModel.js.map

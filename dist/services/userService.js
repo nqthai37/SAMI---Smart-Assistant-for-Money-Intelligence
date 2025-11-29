@@ -2,9 +2,26 @@ import { Prisma } from '@prisma/client';
 import { prisma } from '../lib/prisma.js';
 import { UserModel } from '../model/UserModel.js';
 import bcrypt from 'bcryptjs';
+// search teams by keyword
+export const searchTeams = async (userId, keyword) => {
+    try {
+        // Validate keyword
+        if (!keyword || keyword.trim() === '') {
+            throw new Error('Keyword is required for search');
+        }
+        // Call the model method to search teams
+        const teams = await UserModel.findByKeyWord(userId, keyword);
+        // Return the found teams
+        return teams;
+    }
+    catch (error) {
+        console.error('Error in userService.searchTeams:', error);
+        throw new Error('Failed to search teams');
+    }
+};
 // Get user profile
 export const getUserProfile = async (userId) => {
-    const user = await UserModel.findByUserID(userId);
+    const user = await UserModel.findByID(userId);
     if (!user)
         return null;
     // Return a copy of the user object without the passwordHash
@@ -35,47 +52,77 @@ export const updateUserProfile = async (userId, data) => {
 export const showTeamList = async (userId, options = {}) => {
     const { page = 1, limit = 10 } = options;
     const skip = (page - 1) * limit;
-    // Tìm tất cả các team mà người dùng là chủ sở hữu HOẶC là thành viên
+    // Lấy teams với transactions để tính balance
     const teams = await prisma.teams.findMany({
         where: {
             OR: [
-                {
-                    ownerId: userId, // Người dùng là chủ sở hữu
-                },
+                { ownerId: userId },
                 {
                     teamMembers: {
-                        some: {
-                            userId: userId, // Người dùng là thành viên trong team
-                        },
+                        some: { userId: userId },
                     },
                 },
             ],
         },
+        include: {
+            transactions: {
+                select: {
+                    amount: true,
+                    type: true,
+                },
+            },
+            teamMembers: {
+                where: { userId: userId },
+                select: { role: true },
+            },
+            _count: {
+                select: { teamMembers: true },
+            },
+        },
         skip: skip,
         take: limit,
-        orderBy: {
-            createdAt: 'desc', // Sắp xếp theo team mới nhất
-        },
+        orderBy: { createdAt: 'desc' },
     });
-    // Lấy tổng số team để tính toán phân trang ở phía client
+    // Tính balance cho từng team
+    const teamsWithBalance = teams.map(team => {
+        const totalIncome = team.transactions
+            .filter(t => t.type === 'income')
+            .reduce((sum, t) => sum + Number(t.amount), 0);
+        const totalExpenses = team.transactions
+            .filter(t => t.type === 'expense')
+            .reduce((sum, t) => sum + Number(t.amount), 0);
+        const balance = totalIncome - totalExpenses;
+        const currentUserRole = team.teamMembers[0]?.role || 'member';
+        return {
+            id: team.id,
+            teamName: team.teamName,
+            // description: team.description,
+            // color: team.color || 'bg-blue-500',
+            currency: team.currency,
+            createdAt: team.createdAt,
+            updatedAt: team.updatedAt,
+            totalIncome,
+            totalExpenses,
+            balance,
+            currentUserRole,
+            currentUserMode: currentUserRole, // Assuming mode is same as role
+            members: { length: team._count.teamMembers },
+        };
+    });
     const totalTeams = await prisma.teams.count({
         where: {
             OR: [
-                {
-                    ownerId: userId,
-                },
+                { ownerId: userId },
                 {
                     teamMembers: {
-                        some: {
-                            userId: userId,
-                        },
+                        some: { userId: userId },
                     },
                 },
             ],
         },
     });
     return {
-        data: teams,
+        data: teamsWithBalance,
         pagination: {
             page,
             limit,
@@ -100,19 +147,45 @@ export const getNotification = async (userId, options) => {
     return notifications;
 };
 // Change password
-export const changePassword = async (userId, oldPassword, newPassword) => {
-    const user = await UserModel.findByUserID(userId);
-    if (!user)
+// export const changePassword = async (
+//   userId: number,
+//   oldPassword: string,
+//   newPassword: string
+// ) => {
+//   const user = await UserModel.findByID(userId);
+//   if (!user) throw new Error('User not found');
+//   // Verify old password by comparing with hashed password
+//   const isOldPasswordValid = await bcrypt.compare(oldPassword, user.passwordHash);
+//   if (!isOldPasswordValid) throw new Error('Old password is incorrect');
+//   // Hash new password before saving
+//   const newPasswordHash = await bcrypt.hash(newPassword, 10);
+//   // Update password in database
+//   await prisma.user.update({
+//     where: { id: userId },
+//     data: { passwordHash: newPasswordHash }
+//   });
+//   return { success: true };
+// };
+export const changePassword = async (userIdentifier, // Nhận object chứa id từ token
+oldPassword, newPassword) => {
+    // Tìm user bằng id lấy từ token
+    const user = await prisma.user.findUnique({
+        where: { id: userIdentifier.id },
+    });
+    if (!user) {
+        // Lỗi này không nên xảy ra nếu token hợp lệ, nhưng vẫn cần kiểm tra
         throw new Error('User not found');
-    // Verify old password by comparing with hashed password
+    }
+    // Xác thực mật khẩu cũ
     const isOldPasswordValid = await bcrypt.compare(oldPassword, user.passwordHash);
-    if (!isOldPasswordValid)
-        throw new Error('Old password is incorrect');
-    // Hash new password before saving
+    if (!isOldPasswordValid) {
+        throw new Error('Mật khẩu hiện tại không chính xác');
+    }
+    // Hash mật khẩu mới
     const newPasswordHash = await bcrypt.hash(newPassword, 10);
-    // Update password in database
+    // Cập nhật mật khẩu trong database
     await prisma.user.update({
-        where: { id: userId },
+        where: { id: user.id },
         data: { passwordHash: newPasswordHash }
     });
     return { success: true };

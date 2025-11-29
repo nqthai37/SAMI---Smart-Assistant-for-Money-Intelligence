@@ -33,7 +33,7 @@ export declare const TeamService: {
     setFinanceCategories: (teamId: number, userId: number, newCategory: {
         name: string;
         icon: string;
-    }) => Promise<{
+    }[]) => Promise<{
         id: number;
         createdAt: Date | null;
         updatedAt: Date | null;
@@ -55,5 +55,40 @@ export declare const TeamService: {
         updatedAt: Date | null;
         allowMemberViewReport: boolean | null;
     }>;
+    sendInviteEmail: (teamId: number, email: string, inviterID: number) => Promise<{
+        success: boolean;
+        message: string;
+    }>;
+    handleInviteResponse: (inviteToken: string, email: string) => Promise<{
+        success: boolean;
+        message: string;
+    }>;
+    getTeamDetails: (teamId: number, userId: number) => Promise<{
+        balance: number;
+        budgetProgress: string;
+        incomeProgress: string;
+        id: number;
+        createdAt: Date | null;
+        updatedAt: Date | null;
+        teamMembers: {
+            User: {
+                id: number;
+                firstName: string;
+                lastName: string;
+                email: string;
+            };
+            role: string | null;
+            joinedAt: Date | null;
+        }[];
+        teamName: string;
+        ownerId: number;
+        currency: string;
+        budget: import("@prisma/client/runtime/library").Decimal | null;
+        incomeGoal: import("@prisma/client/runtime/library").Decimal | null;
+        allowMemberViewReport: boolean | null;
+        categories: import("@prisma/client/runtime/library").JsonValue;
+    }>;
+    removeMember: (teamId: number, memberId: number, userId: number) => Promise<import("@prisma/client").Prisma.BatchPayload>;
+    changeMemberRole: (teamId: number, memberId: number, userId: number, newRole: string) => Promise<import("@prisma/client").Prisma.BatchPayload>;
 };
 //# sourceMappingURL=teamService.d.ts.map

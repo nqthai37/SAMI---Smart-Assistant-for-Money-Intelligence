@@ -30,7 +30,11 @@ const deleteTeam = async (req, res) => {
             return res.status(400).json({ message: 'Invalid team id' });
         }
         await TeamService.deleteTeam(teamId, userId);
-        return res.status(204).send();
+        return res.status(200).json({
+            message: 'Team deleted successfully',
+            teamId: teamId,
+            success: true
+        });
     }
     catch (error) {
         console.error('Error deleting team:', error);
@@ -83,8 +87,8 @@ const setCategories = async (req, res) => {
     try {
         const teamId = Number(req.params.id);
         const userId = req.user.id;
-        const { name, icon } = req.body;
-        const result = await TeamService.setFinanceCategories(teamId, userId, { name, icon });
+        const { categories } = req.body;
+        const result = await TeamService.setFinanceCategories(teamId, userId, categories);
         return res.status(200).json({ message: 'Categories updated', ...result });
     }
     catch (err) {
@@ -116,5 +120,85 @@ const permitMemberViewReport = async (req, res) => {
         return res.status(err?.statusCode ?? 500).json({ message: err?.message ?? 'Server error' });
     }
 };
-export { createTeam, deleteTeam, setBudget, setIncomeGoal, setCurrency, setCategories, renameWorkspace, permitMemberViewReport, };
+const sendInviteEmail = async (req, res) => {
+    try {
+        const teamId = Number(req.params.id);
+        const { email } = req.body;
+        // Gửi email mời tham gia team
+        await TeamService.sendInviteEmail(teamId, email, req.user.id);
+        return res.status(200).json({ message: 'Email mời đã được gửi thành công' });
+    }
+    catch (error) {
+        console.error('Error sending invite email:', error);
+        return res.status(500).json({ message: 'Lỗi khi gửi email mời' });
+    }
+};
+const handleInviteResponse = async (req, res) => {
+    try {
+        const { inviteToken, email } = req.body;
+        // Xử lý phản hồi lời mời
+        const result = await TeamService.handleInviteResponse(inviteToken, email);
+        return res.status(200).json(result);
+    }
+    catch (error) {
+        console.error('Error handling invite response:', error);
+        return res.status(500).json({ message: 'Lỗi khi xử lý phản hồi lời mời' });
+    }
+};
+const getTeamDetails = async (req, res) => {
+    try {
+        const teamId = Number(req.params.id);
+        const userId = req.user.id;
+        if (Number.isNaN(teamId)) {
+            return res.status(400).json({ message: 'Invalid team id' });
+        }
+        const teamDetails = await TeamService.getTeamDetails(teamId, userId);
+        return res.status(200).json(teamDetails);
+    }
+    catch (error) {
+        console.error('Error getting team details:', error);
+        return res.status(error?.statusCode ?? 500).json({ message: error?.message ?? 'Server error' });
+    }
+};
+const removeMember = async (req, res) => {
+    try {
+        const teamId = Number(req.params.id);
+        const memberId = Number(req.params.memberId);
+        const userId = req.user.id;
+        if (Number.isNaN(teamId) || Number.isNaN(memberId)) {
+            return res.status(400).json({ message: 'Invalid team id or member id' });
+        }
+        await TeamService.removeMember(teamId, memberId, userId);
+        return res.status(200).json({ message: 'Thành viên đã được xóa khỏi nhóm.' });
+    }
+    catch (error) {
+        console.error('Error removing member from team:', error);
+        const status = error?.statusCode ?? 500;
+        const msg = error?.message ??
+            (status === 500 ? 'Server error' : 'Unable to remove member');
+        return res.status(status).json({ message: msg });
+    }
+};
+const changeMemberRole = async (req, res) => {
+    try {
+        const teamId = Number(req.params.id);
+        const memberId = Number(req.params.memberId);
+        const userId = req.user.id;
+        const { role } = req.body;
+        console.log('Changing member role:', { teamId, memberId, userId, role });
+        if (Number.isNaN(teamId) || Number.isNaN(memberId) || !role) {
+            return res.status(400).json({ message: 'Invalid team id, member id, or role' });
+        }
+        await TeamService.changeMemberRole(teamId, memberId, userId, role);
+        return res.status(200).json({ message: 'Member role updated successfully' });
+    }
+    catch (error) {
+        console.error('Error changing member role:', error);
+        const status = error?.statusCode ?? 500;
+        const msg = error?.message ??
+            (status === 500 ? 'Server error' : 'Unable to change member role');
+        return res.status(status).json({ message: msg });
+    }
+};
+export { createTeam, deleteTeam, setBudget, setIncomeGoal, setCurrency, setCategories, renameWorkspace, permitMemberViewReport, sendInviteEmail, handleInviteResponse, getTeamDetails, removeMember, changeMemberRole, };
 //# sourceMappingURL=teamController.js.map

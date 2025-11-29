@@ -76,5 +76,103 @@ export declare const TeamModel: {
      * Đếm membership theo role
      */
     countMembershipByRoles: (teamId: number, userId: number, roles: string[]) => Promise<number>;
+    findById: (teamId: number) => Promise<{
+        id: number;
+        createdAt: Date | null;
+        updatedAt: Date | null;
+        teamName: string;
+        ownerId: number;
+        currency: string;
+        budget: Prisma.Decimal | null;
+        incomeGoal: Prisma.Decimal | null;
+        allowMemberViewReport: boolean | null;
+        categories: Prisma.JsonValue;
+    } | null>;
+    findMemberByEmail: (teamId: number, email: string) => Promise<{
+        role: string | null;
+    } | null>;
+    findInviteByEmail: (teamId: number, email: string) => Promise<{
+        id: number;
+        expiresAt: Date | null;
+    } | null>;
+    saveInvitation: (data: {
+        inviteToken: string;
+        teamId: number;
+        inviterID: number;
+        email: string;
+        expiresAt: Date;
+    }) => Promise<{
+        token: string;
+        id: number;
+        status: import("@prisma/client").$Enums.invitation_status;
+        createdAt: Date | null;
+        teamId: number;
+        expiresAt: Date | null;
+        inviterId: number;
+        inviteeEmail: string;
+    }>;
+    findInviteByToken: (inviteToken: string) => Promise<{
+        id: number;
+        teamId: number;
+        expiresAt: Date | null;
+        inviterId: number;
+        inviteeEmail: string;
+    } | null>;
+    updateInvitationStatus: (inviteId: number, status: "accepted" | "rejected" | "expired") => Promise<{
+        token: string;
+        id: number;
+        status: import("@prisma/client").$Enums.invitation_status;
+        createdAt: Date | null;
+        teamId: number;
+        expiresAt: Date | null;
+        inviterId: number;
+        inviteeEmail: string;
+    }>;
+    addMember: (teamId: number, userId: number, role: string) => Promise<{
+        userId: number;
+        teamId: number;
+        role: string | null;
+        joinedAt: Date | null;
+    }>;
+    getTransactions: (teamId: number) => Promise<{
+        id: number;
+        type: import("@prisma/client").$Enums.transaction_type;
+        createdAt: Date | null;
+        updatedAt: Date | null;
+        userId: number;
+        teamId: number;
+        amount: Prisma.Decimal;
+        categoryName: string | null;
+        categoryIcon: string | null;
+        description: string | null;
+        transactionDate: Date | null;
+    }[]>;
+    getDetails: (teamId: number, userId: number) => Promise<{
+        id: number;
+        createdAt: Date | null;
+        updatedAt: Date | null;
+        teamMembers: {
+            User: {
+                id: number;
+                firstName: string;
+                lastName: string;
+                email: string;
+            };
+            role: string | null;
+            joinedAt: Date | null;
+        }[];
+        teamName: string;
+        ownerId: number;
+        currency: string;
+        budget: Prisma.Decimal | null;
+        incomeGoal: Prisma.Decimal | null;
+        allowMemberViewReport: boolean | null;
+        categories: Prisma.JsonValue;
+    }>;
+    getMembership: (teamId: number, userId: number) => Promise<{
+        role: string | null;
+    } | null>;
+    removeMember: (teamId: number, memberId: number) => Promise<Prisma.BatchPayload>;
+    updateMemberRole: (teamId: number, memberId: number, newRole: string) => Promise<Prisma.BatchPayload>;
 };
 //# sourceMappingURL=teamModel.d.ts.map

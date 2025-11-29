@@ -43,6 +43,8 @@ export interface BudgetAlertData {
 }
 export interface EmailTemplateData {
     userName?: string;
+    userEmail?: string;
+    teamId?: number;
     teamName?: string;
     inviterName?: string;
     transaction?: TransactionEmailData;

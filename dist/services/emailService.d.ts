@@ -6,7 +6,7 @@ declare class EmailService {
     private createTransporter;
     sendEmail(options: EmailOptions): Promise<EmailResult>;
     sendWelcomeEmail(userEmail: string, userName: string): Promise<EmailResult>;
-    sendTeamInvitation(userEmail: string, teamName: string, inviterName: string): Promise<EmailResult>;
+    sendTeamInvitation(teamId: number, userEmail: string, teamName: string, inviterName: string, resetToken: string): Promise<EmailResult>;
     sendTransactionAlert(userEmail: string, userName: string, transaction: TransactionEmailData): Promise<EmailResult>;
     sendPasswordReset(userEmail: string, resetToken: string): Promise<EmailResult>;
     sendBudgetAlert(userEmail: string, userName: string, teamName: string, budgetInfo: BudgetAlertData): Promise<EmailResult>;

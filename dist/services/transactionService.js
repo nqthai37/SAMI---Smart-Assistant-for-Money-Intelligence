@@ -1,6 +1,8 @@
 // File: services/transaction.service.ts
 import { TransactionModel } from '../model/transactionModel.js';
 import { TeamModel } from '../model/teamModel.js';
+import { PrismaClient } from '@prisma/client'; // THÊM DÒNG NÀY
+const prisma = new PrismaClient();
 // Add new transaction
 export const addTransactionRecord = async (transactionData, userId) => {
     if (!transactionData.teamId ||
@@ -19,14 +21,22 @@ export const addTransactionRecord = async (transactionData, userId) => {
         error.statusCode = 403;
         throw error;
     }
+    // THÊM: Convert transactionDate thành Date object nếu là string
+    let parsedDate;
+    if (typeof transactionData.transactionDate === 'string') {
+        parsedDate = new Date(transactionData.transactionDate + 'T00:00:00.000Z');
+    }
+    else {
+        parsedDate = transactionData.transactionDate;
+    }
     // Dữ liệu để tạo transaction mới, kết nối với team và user
     const newTransactionData = {
         amount: transactionData.amount,
-        type: transactionData.type, // Đảm bảo type hợp lệ
+        type: transactionData.type,
         categoryName: transactionData.categoryName,
         categoryIcon: transactionData.categoryIcon,
         description: transactionData.description,
-        transactionDate: transactionData.transactionDate,
+        transactionDate: parsedDate, // SỬA: Sử dụng parsedDate thay vì transactionData.transactionDate
         // Kết nối với các bảng liên quan bằng ID
         teams: {
             connect: { id: transactionData.teamId },
@@ -52,6 +62,14 @@ export const listTransactionsByTeam = async (teamId, userId, options) => {
     const [transactions, totalTransactions] = await prisma.$transaction([
         prisma.transactions.findMany({
             where: { teamId: teamId },
+            include: {
+                User: {
+                    select: {
+                        id: true,
+                        firstName: true,
+                    },
+                },
+            },
             skip: skip,
             take: limit,
             orderBy: {
@@ -62,8 +80,15 @@ export const listTransactionsByTeam = async (teamId, userId, options) => {
             where: { teamId: teamId },
         }),
     ]);
+    const transformedTransactions = transactions.map(transaction => ({
+        ...transaction,
+        createdBy: transaction.User?.firstName || 'Unknown User',
+        createdById: transaction.User?.id || transaction.userId,
+        // Bỏ User object để tránh gửi thông tin thừa
+        User: undefined,
+    }));
     return {
-        data: transactions,
+        data: transformedTransactions,
         pagination: {
             page,
             limit,

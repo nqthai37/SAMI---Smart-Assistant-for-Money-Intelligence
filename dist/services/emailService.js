@@ -70,8 +70,8 @@ class EmailService {
             html: htmlContent
         });
     }
-    async sendTeamInvitation(userEmail, teamName, inviterName) {
-        const htmlContent = this.generateTeamInvitationTemplate({ teamName, inviterName });
+    async sendTeamInvitation(teamId, userEmail, teamName, inviterName, resetToken) {
+        const htmlContent = this.generateTeamInvitationTemplate({ teamId, userEmail, teamName, inviterName, resetToken });
         return await this.sendEmail({
             to: userEmail,
             subject: `🎯 You're invited to join "${teamName}" team on SAMI`,
@@ -175,6 +175,7 @@ class EmailService {
     `;
     }
     generateTeamInvitationTemplate(data) {
+        const inviteLink = `${process.env.FRONTEND_URL}/login?inviteToken=${data.resetToken}`;
         return `
       <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; background: #f9f9f9; padding: 20px;">
         <div style="background: white; padding: 30px; border-radius: 10px; box-shadow: 0 2px 10px rgba(0,0,0,0.1);">
@@ -200,7 +201,7 @@ class EmailService {
           </div>
           
           <div style="text-align: center; margin: 30px 0;">
-            <a href="${process.env.FRONTEND_URL}/accept-invitation" 
+            <a href="${inviteLink}" 
                style="background: #4CAF50; color: white; padding: 15px 30px; text-decoration: none; border-radius: 8px; font-weight: bold; display: inline-block;">
               Accept Invitation
             </a>
